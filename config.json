@@ -1,0 +1,42 @@
+{
+  "##### binance account settings #####": false,
+    "apikey": "gW3TsYrpPoSBEX61rvGf...............pQjv4nfl8LnGXOX1iL9LcHa",
+    "prikey": "bqNINND57jzM8wDYVi6A...............LUmq7c0uhvwUugeW67hx8Bm",
+
+  "##### Basic buy settings #####": false,
+    "base_currency":"BTC",
+    "strategy": "PeriodBasedTransactionStrategy",
+    "max_open_buy_orders": 18,
+    "max_open_sell_orders": 25,
+    "buy_at_percent": 0.84,
+    "sell_at_percent": 1.30,
+    "cancel_buy_at_lower_percent": 78,
+    "cancel_buy_at_upper_percent": 136,
+    "investment_period": "3m",
+    "#investment_period": "3m",
+    "#investment_period": "15m",
+    "#investment_period": "1h",
+
+  "##### Advanced buy settings #####": false,
+    "max_unit_price_btc": 0.00020,
+    "downward_trigger_percent": -2.00,
+    "buy_total_amount_btc": 0.0045,
+    "ignore_less_than_amount_dollars": 10,
+    "btc_reserve_amount": 0.004,
+
+  "##### Cache file settings #####": false,
+    "cachedir": "cache",
+    "lastRunFile": "cache/lastrun.txt",
+    "cacheOrdersFile": "cache/orders.txt",
+    "cacheBalancesFile": "cache/balances.txt",
+    "cachePricesFile": "cache/prices.txt",
+    "cacheCandlesFile": "cache/candles.txt",
+    "btcTrackerFile": "cache/btcbalances.txt",
+    "cache_tmeout_seconds": 900,
+
+    "##### SMS Gateway #####": false,
+      "smsGateway": "EirSMS",
+      "smsGatewayUsername": "dmz.oneill@gmail.com",
+      "smsGatewayPassword": "...........",
+      "smsGatewayRecipientNumber": "+353861938787"
+}

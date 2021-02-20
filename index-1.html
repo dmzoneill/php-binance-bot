@@ -1,0 +1,36 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>Unknown </title></head><body>
+<h1 id="php-binance-bot">PHP Binance Bot</h1>
+<h2 id="based-on">Based on</h2>
+<p>https://github.com/jaggedsoft/php-binance-api</p>
+<p><img alt="alt text" src="https://github.com/dmzoneill/php-binance-bot/raw/master/example.png" /></p>
+<h2 id="donations">Donations</h2>
+<p>Bitcoin 1BLX95wuEQdMkdeRLR5mjgJ1AvJv16CY1r</p>
+<p>ETH 0x8831876a202a5722d869a6397e521b94bef483a6</p>
+<p>LTC LZSEvLg43YXT1yoPacpKWgzwo3zzUFbF4y</p>
+<p>Strategies wrriten on demand - donations helps</p>
+<h2 id="getting-started">Getting Started</h2>
+<p>Bot has made me 40% more bitcoin, uses basic fibionacci strategy</p>
+<p>modify config.json and put in the relevant api and prikey, </p>
+<p>modify the rest of the settings if you wish</p>
+<h2 id="basic-operation">Basic operation</h2>
+<p>php binance-bot.class.php</p>
+<p>The goal is to accrue more bitcoin
+Transactions are limited to BTC pairings.</p>
+<p>The bot will buy on downward trending stocks defined by "<strong>downward_trigger_percent</strong>" using the 24hr percent change.</p>
+<h3 id="buy-orders">Buy orders</h3>
+<p>If the "<strong>downward_trigger_percent</strong>" is set at -5,  then when the stock hits -6% in the last day, the bot will buy set a 'buy limit' at "<strong>buy_at_percent</strong>" (86%).  </p>
+<p>The bot will buy "<strong>buy_total_amount_btc</strong>". </p>
+<p>The quantity is that "<strong>buy_total_amount_btc</strong>" divided by the unit price.</p>
+<p>The Bot decides to buy penny stocks lower than the "<strong>max_unit_price_btc</strong>" (0.0001) roughly $1.</p>
+<p>The bot will buy up to "<strong>max_open_buy_orders</strong>" (15) orders.</p>
+<p>the bot will set the 'buy limit' at "<strong>buy_at_percent</strong>" (0.82)</p>
+<p>The bot will cancel buy orders if they fall out of the range of "<strong>cancel_buy_at_lower_percent</strong>" (72%) and "<strong>cancel_buy_at_upper_percent</strong>" (132%)</p>
+<h3 id="sell-orders">Sell orders</h3>
+<p>Once a buy has been detected 
+The Bot will immediately 'set limit' for the maximum amount available at "<strong>sell_at_percent</strong>" (1.22) .</p>
+<p>The bot will buy up to "<strong>max_open_buy_orders</strong>" (15)</p>
+<h3 id="loss-protection">Loss protection</h3>
+<p>None at this time.</p>
+<h3 id="can-i-change-the-logic-or-implement-other-strategies">Can i change the logic or implement other strategies.</h3>
+<p>sure, Look at basicTractionStategy (strategy pattern)</p>
+</body></html>
