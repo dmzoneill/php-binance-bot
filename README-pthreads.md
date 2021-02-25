@@ -64,6 +64,7 @@ chmod o+x /etc/php7/bin/phpize
 chmod o+x /etc/php7/bin/php-config
 git clone https://github.com/krakjoe/pthreads.git
 cd pthreads
+/etc/php7/bin/phpize
 ./configure --prefix='/etc/php7' --with-libdir='/lib/x86_64-linux-gnu' --enable-pthreads=shared --with-php-config='/etc/php7/bin/php-config'
 make && sudo make install
 ```
