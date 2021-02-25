@@ -1,6 +1,6 @@
 # PHP Binance Bot
 
-# This require threaded php
+# This requires threaded php
 https://github.com/dmzoneill/php-binance-bot/blob/master/README-pthreads.md
 
 ## Based on
