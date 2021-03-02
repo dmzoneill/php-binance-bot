@@ -4,14 +4,14 @@ namespace BinanceBot;
 
 class BinanceBotPrinter
 {
-   private $holdingsMask = "| %2.2s | %8.8s | %9.9s | %7.7s | %10.10s | % 8.2f | %10.10s | % 8.2f | % 8.2f |";
-   private $holdingsMaskTitle = "| %2.2s | %8.8s | %9.9s | %7.7s | %10.10s | %8.8s | %10.10s | %8.8s | %8.8s |";
-   private $holdingsTotalMask = "%37.37s %12.12s   %8.8s   %10.10s   %8.8s   %8.8s";
+   private $holdingsMaskTitle = "| %4s | %14s | %16s | %16s | %16s | %8s | %16s | %8s | %8s |";
+   private $holdingsMask = "| %4s | %14s | % 16.11f | % 16.11f | % 16.11f | % 8.2f | % 16.11f | % 8.2f | % 8.2f |";
+   private $holdingsTotalMask = "%66s % 12.11f   %8.2f   %16.11f   %8.2f   %8.2f";
    private $holdingsTotalLine = "";
 
-   private $ordersMaskTitle = "| %2.2s | %8.8s | %4.4s | %5.5s | %5.5s | %10.10s | %10.10s | %8.8s | %8.8s | %6.6s | %6.6s | %3.3s | %2.2s | %3.3s | %3.3s |";
-   private $ordersMask = "| %2.2s | %8.8s | %4.4s | %5.5s | %5.5s | % 10.8f | % 10.8f | % 8.2f | % 8.2f | % 6.2f | % 6.2f | %3.3s | T1%2.2s\e[49m | T2%3.3s\e[49m | T3%3.3s\e[49m |";
-   private $ordersTotalMask = "%52.52s  % 10.8f              % 8.2f % 8.2f";
+   private $ordersMaskTitle = "| %4s | %10s | %6s | %7s | %7s | %14s | %14s | %10s | %8s | %7s | %7s | %5s | %3s | %3s | %3s |";
+   private $ordersMask = "| %4s | %10s | %6s | %7s | %7d | % 14.10f | % 14.10f | % 10.4f | % 8.2f | % 7.2f | % 7.2f | %5s | T1%3s\e[49m | T2%3s\e[49m | T3%3s\e[49m |";
+   private $ordersTotalMask = "%68s  % 11.10f                % 8.2f  % 8.2f";
 
    private $outputLines = array();
    private $_api = null;
@@ -28,8 +28,8 @@ class BinanceBotPrinter
       $this->_prices = $arrs[3];
       $this->_candles = $arrs[4];
 
-      $this->holdingsTotalLine = str_repeat("-", 96);
-      $this->ordersTotalLine = str_repeat("-", 127);
+      $this->holdingsTotalLine = str_repeat("-", 132);
+      $this->ordersTotalLine = str_repeat("-", 152);
    }
 
    private function clear()

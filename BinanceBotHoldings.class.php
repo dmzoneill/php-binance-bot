@@ -136,7 +136,7 @@ class BinanceBotHoldings
 
       foreach( $this->balances as $symbol => $data )
       {
-         if( $data[ 'available' ] > 0.00 )
+         if( $data[ 'available' ] )
          {
             $btcvalue = $data['btcValue'];
             $usdvalue = $exchange_rate * $data['btcValue'];
@@ -145,7 +145,7 @@ class BinanceBotHoldings
             $eurtotal = $exchange_rate_eur * $data['btcTotal'];
 
             $this->holdings[ $symbol ] = $usdtotal;
-            if( $data['btcTotal'] > 0.001 )
+            if( $data['available'] > 0.00000000 )
             {
                $this->wallet[] = array( $symbol, $data['available'], $data['onOrder'], $btcvalue, round( $usdvalue, 2 ), $btctotal, round( $usdtotal, 2 ), round( $eurtotal, 2 ) );
             }

@@ -66,13 +66,18 @@ class BinanceBotOrders
             $curnumSymbol++;
             continue;
          }
-
-         print " Getting orders [$curnumSymbol/$numSymbols] " . $symbol . " ";
-         $orders = $this->_api->orders( $symbol );
-         foreach( $orders as $ordernum => $orderdetails )
+         try {
+            print " Getting orders [$curnumSymbol/$numSymbols] " . $symbol . " ";
+            $orders = $this->_api->orders( $symbol );
+            foreach( $orders as $ordernum => $orderdetails )
+            {
+               if( isset( $orderdetails[ 'status' ] ) == false ) continue;
+               $this->orders[$symbol][] = $orderdetails;
+            }
+         }
+         catch (Exception $e) 
          {
-            if( isset( $orderdetails[ 'status' ] ) == false ) continue;
-            $this->orders[$symbol][] = $orderdetails;
+            print($e);
          }
 
          print "\r";
@@ -225,20 +230,25 @@ class BinanceBotOrders
    public function placeBuyOrder( $symbol, $price, $quantity )
    {
       print " Place buy order\n";
+      try 
+      {
+         // open order already
+         if( count( $this->getAllOpenBuyOrdersBySymbol( $symbol ) ) > 0 ) return 0;
+         $response = $this->_api->buy( $symbol, $quantity, $price );
+         print_r( $response );
 
-      // open order already
-      if( count( $this->getAllOpenBuyOrdersBySymbol( $symbol ) ) > 0 ) return 0;
+         $orders = array_reverse( $this->_api->openOrders( $symbol ) );
+         $this->orders[ $symbol ][] = $orders[0];
+         $this->save();
+      
+         @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
 
-      $response = $this->_api->buy( $symbol, $quantity, $price );
-      print_r( $response );
-
-      $orders = array_reverse( $this->_api->openOrders( $symbol ) );
-      $this->orders[ $symbol ][] = $orders[0];
-      $this->save();
-
-      @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
-
-      $this->_smsGateway->send( "Buy Order: $symbol - $price - $quantity" );
+         $this->_smsGateway->send( "Buy Order: $symbol - $price - $quantity" );
+      }
+      catch (Exception $e) 
+      {
+         print($e);
+      }
 
       return 1;
    }

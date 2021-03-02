@@ -68,7 +68,7 @@ class BinanceBotPrices
       {
          $page = file_get_contents( "https://bitpay.com/api/rates" );
          $my_array = json_decode( $page, true );
-         self::$btcusd = round( $my_array[1][ "rate" ] );
+         self::$btcusd = round( $my_array[2][ "rate" ] );
       }
 
       return self::$btcusd;
@@ -80,7 +80,7 @@ class BinanceBotPrices
       {
          $page = file_get_contents( "https://bitpay.com/api/rates" );
          $my_array = json_decode( $page, true );
-         self::$btceur = round( $my_array[2][ "rate" ] );
+         self::$btceur = round( $my_array[3][ "rate" ] );
       }
 
       return self::$btceur;
