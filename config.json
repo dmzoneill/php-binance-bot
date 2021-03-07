@@ -1,13 +1,20 @@
 {
+  "##### Test #####": false,
+    "test": false,
+    "debug": true,
+
   "##### binance account settings #####": false,
-    "apikey": "gW3TsYrpPoSBEX61rvGf...............pQjv4nfl8LnGXOX1iL9LcHa",
-    "prikey": "bqNINND57jzM8wDYVi6A...............LUmq7c0uhvwUugeW67hx8Bm",
+    "apikey": "0MvRXIFXWZT...................xPsYvfUg9R8r5Ly0",
+    "prikey": "LTmcE05iiUz.............We39CJNrdwdlv2SiiqxenXe",
+
+  "##### coinranking.com api key": false,
+    "cr_apikey": "coinranking2c..............1f0e7c9af1f56fd9f40",
 
   "##### Basic buy settings #####": false,
-    "base_currency":"BTC",
+    "base_currency":"BNB",
     "strategy": "PeriodBasedTransactionStrategy",
-    "max_open_buy_orders": 18,
-    "max_open_sell_orders": 25,
+    "max_open_buy_orders": 5,
+    "max_open_sell_orders": 5,
     "buy_at_percent": 0.84,
     "sell_at_percent": 1.30,
     "cancel_buy_at_lower_percent": 78,
@@ -18,11 +25,11 @@
     "#investment_period": "1h",
 
   "##### Advanced buy settings #####": false,
-    "max_unit_price_btc": 0.00020,
+    "max_unit_price": 0.005,
     "downward_trigger_percent": -2.00,
-    "buy_total_amount_btc": 0.0045,
+    "buy_total_amount": 0.075,
     "ignore_less_than_amount_dollars": 10,
-    "btc_reserve_amount": 0.004,
+    "reserve_amount": 0.1,
 
   "##### Cache file settings #####": false,
     "cachedir": "cache",
@@ -31,12 +38,12 @@
     "cacheBalancesFile": "cache/balances.txt",
     "cachePricesFile": "cache/prices.txt",
     "cacheCandlesFile": "cache/candles.txt",
-    "btcTrackerFile": "cache/btcbalances.txt",
+    "baseCurrencyTrackerFile": "cache/basebalances.txt",
     "cache_tmeout_seconds": 900,
 
-    "##### SMS Gateway #####": false,
-      "smsGateway": "EirSMS",
-      "smsGatewayUsername": "dmz.oneill@gmail.com",
-      "smsGatewayPassword": "...........",
-      "smsGatewayRecipientNumber": "+3538619XXXXXX"
+  "##### SMS Gateway #####": false,
+    "smsGateway": "EirSMS",
+    "smsGatewayUsername": "dmz.oneill@gmail.com",
+    "smsGatewayPassword": "...........",
+    "smsGatewayRecipientNumber": "+353861934567"
 }

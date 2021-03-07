@@ -2,6 +2,8 @@
 
 namespace BinanceBot;
 
+use \Exception as Exception;
+
 class BinanceBotOrders
 {
    private $_api = null;
@@ -69,6 +71,7 @@ class BinanceBotOrders
          try {
             print " Getting orders [$curnumSymbol/$numSymbols] " . $symbol . " ";
             $orders = $this->_api->orders( $symbol );
+
             foreach( $orders as $ordernum => $orderdetails )
             {
                if( isset( $orderdetails[ 'status' ] ) == false ) continue;
@@ -151,6 +154,11 @@ class BinanceBotOrders
 
    public function getAllBuyOrders( $symbol )
    {
+      if(in_array($symbol, array_keys($this->orders)) == false) 
+      {
+         return [];
+      }
+      
       return array_values(
          array_filter(
             $this->orders[ $symbol ],
@@ -164,6 +172,10 @@ class BinanceBotOrders
 
    public function getAllSellOrders( $symbol )
    {
+      if(in_array($symbol, array_keys($this->orders)) == false) 
+      {
+         return [];
+      }
       return array_values(
          array_filter(
             $this->orders[ $symbol ],
@@ -207,7 +219,10 @@ class BinanceBotOrders
 
       // cancel order if great than 50% change
       $response = $this->_api->cancel( $symbol, $orderid );
-      print_r( $response );
+      
+      if(BinanceBotSettings::getInstance()->debug) {
+         print_r($response);
+      }
 
       $this->orders[$symbol] = array();
 
@@ -229,13 +244,19 @@ class BinanceBotOrders
 
    public function placeBuyOrder( $symbol, $price, $quantity )
    {
-      print " Place buy order\n";
+      if(BinanceBotSettings::getInstance()->debug) {
+         print "Place buy order\n";
+      }
+      
       try 
       {
          // open order already
          if( count( $this->getAllOpenBuyOrdersBySymbol( $symbol ) ) > 0 ) return 0;
          $response = $this->_api->buy( $symbol, $quantity, $price );
-         print_r( $response );
+
+         if(BinanceBotSettings::getInstance()->debug) {
+            print_r($response);
+         }
 
          $orders = array_reverse( $this->_api->openOrders( $symbol ) );
          $this->orders[ $symbol ][] = $orders[0];
@@ -267,12 +288,22 @@ class BinanceBotOrders
       {
          if( $exchangeInfoSymbol['symbol'] == $symbol )
          {
-            print_r( $exchangeInfoSymbol );
+            if(BinanceBotSettings::getInstance()->debug) {
+               print_r($exchangeInfoSymbol);
+            }
          }
       }
 
-      $response = $this->_api->sell( $symbol, $quantity, $price );
-      print_r( $response );
+      try {
+         $response = $this->_api->sell( $symbol, $quantity, $price );
+      }
+      catch(Exception $e) {
+         print($e);
+      }
+
+      if(BinanceBotSettings::getInstance()->debug) {
+         print_r($response);
+      }
 
       $orders = array_reverse( $this->_api->openOrders( $symbol ) );
       $this->orders[ $symbol ][] = $orders[0];
@@ -294,10 +325,10 @@ class BinanceBotOrders
       foreach( $this->getAllOpenBuyOrders() as $order )
       {
          $cum_TotalPriceBTC += $order['price'] * $order['origQty'];
-         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBTCUSD();
+         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBaseCurrencyUSD();
 
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
+         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
+         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $cum_ChangePriceUSD += $orderTotalUsd - $currentTotalUsd;
       }
 
@@ -313,10 +344,10 @@ class BinanceBotOrders
       foreach( $this->getAllOpenSellOrders() as $order )
       {
          $cum_TotalPriceBTC += $order['price'] * $order['origQty'];
-         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBTCUSD();
+         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBaseCurrencyUSD();
 
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
+         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
+         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $cum_ChangePriceUSD += $orderTotalUsd - $currentTotalUsd;
       }
 

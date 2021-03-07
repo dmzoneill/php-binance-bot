@@ -4,9 +4,9 @@ namespace BinanceBot;
 
 class BinanceBotPrinter
 {
-   private $holdingsMaskTitle = "| %4s | %14s | %16s | %16s | %16s | %8s | %16s | %8s | %8s |";
-   private $holdingsMask = "| %4s | %14s | % 16.11f | % 16.11f | % 16.11f | % 8.2f | % 16.11f | % 8.2f | % 8.2f |";
-   private $holdingsTotalMask = "%66s % 12.11f   %8.2f   %16.11f   %8.2f   %8.2f";
+   private $holdingsMaskTitle = "| %4s | %10s | %20s | %20s | %16s | %8s | %16s | %8s | %8s |";
+   private $holdingsMask = "| %4s | %10s | % 20.11f | % 20.11f | % 16.11f | % 8.2f | % 16.11f | % 8.2f | % 8.2f |";
+   private $holdingsTotalMask = "%70s % 12.11f   %8.2f   %16.11f   %8.2f   %8.2f";
    private $holdingsTotalLine = "";
 
    private $ordersMaskTitle = "| %4s | %10s | %6s | %7s | %7s | %14s | %14s | %10s | %8s | %7s | %7s | %5s | %3s | %3s | %3s |";
@@ -28,7 +28,7 @@ class BinanceBotPrinter
       $this->_prices = $arrs[3];
       $this->_candles = $arrs[4];
 
-      $this->holdingsTotalLine = str_repeat("-", 132);
+      $this->holdingsTotalLine = str_repeat("-", 136);
       $this->ordersTotalLine = str_repeat("-", 152);
    }
 
@@ -59,16 +59,20 @@ class BinanceBotPrinter
    {
       list( $cumbuy, $cumsell, $buyfilled, $sellfilled ) = $this->_orders->calculateOrderSummaryBTCEarnings();
 
-      $exchangeline = "Exchange Rate = $" . BinanceBotPrices::getBTCUSD();
+      $exchangeline = "Exchange Rate BTC = $" . BinanceBotPrices::getBTCUSD();
       $exchangeline .= " - €" . BinanceBotPrices::getBTCEUR() . " - " . sha1( time() );
 
+      $exchangelineBase = "Exchange Rate " . BinanceBotSettings::getInstance()->base_currency . " = $" . BinanceBotPrices::getBaseCurrencyUSD();
+      $exchangelineBase .= " - €" . BinanceBotPrices::getBaseCurrencyEUR();
+
       $orderStats = "Max Buy/Sell orders = " . BinanceBotSettings::getInstance()->max_open_buy_orders . "/" . BinanceBotSettings::getInstance()->max_open_sell_orders;
-      $orderStats .= sprintf( " - Accumulated: % 10.8f btc ( $% 5.2f )", ( $cumsell - $cumbuy ), ( $cumsell - $cumbuy ) * BinanceBotPrices::getBTCUSD() );
+      $orderStats .= sprintf( " - Accumulated: % 10.8f " . BinanceBotSettings::getInstance()->base_currency . " ( $% 5.2f )", ( $cumsell - $cumbuy ), ( $cumsell - $cumbuy ) * BinanceBotPrices::getBaseCurrencyUSD() );
 
       $apiStats = "Api requests: " . $this->_api->getRequestCount(). ", total of " . $this->_api->getTransfered();
       $apiStats .= sprintf( " - Bought: %s, Sold: %s\n", $buyfilled, $sellfilled );
 
       $this->addLine( $exchangeline );
+      $this->addLine( $exchangelineBase );
       $this->addLine( $orderStats );
       $this->addLine( $apiStats );
    }
@@ -97,14 +101,14 @@ class BinanceBotPrinter
    {
       $this->addLine( "Buy Limits Orders" );
       $this->addLine( " " . $this->ordersTotalLine );
-      $this->addLine( sprintf($this->ordersMaskTitle, '#', 'Symbol', 'Side', 'Type', 'Q', 'BTC/Unit', 'TotalBTC', 'USD/Unit', 'TotalUSD', 'CTotal', 'C/Unit', 'C%', '3m' ,'15m', '1hr' ) );
+      $this->addLine( sprintf($this->ordersMaskTitle, '#', 'Symbol', 'Side', 'Type', 'Q', BinanceBotSettings::getInstance()->base_currency . '/Unit', 'Total' . BinanceBotSettings::getInstance()->base_currency, 'USD/Unit', 'TotalUSD', 'CTotal', 'C/Unit', 'C%', '3m' ,'15m', '1hr' ) );
       $this->addLine( " " . $this->ordersTotalLine );
 
       $numid = 1;
       foreach( $this->_orders->getAllOpenBuyOrders() as $order )
       {
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
+         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
+         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $diff = $orderTotalUsd - $currentTotalUsd;
          $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 2);
          $diffpercent = round( ( abs( $diff ) / $orderTotalUsd ) * 100 );
@@ -122,7 +126,7 @@ class BinanceBotPrinter
                         round($order['origQty'],3),
                         $order['price'],
                         $order['price'] * $order['origQty'],
-                        round($order['price'] * BinanceBotPrices::getBTCUSD(), 2),
+                        round($order['price'] * BinanceBotPrices::getBaseCurrencyUSD(), 2),
                         $orderTotalUsd,
                         round( $diff, 2),
                         $diffunit,
@@ -143,14 +147,14 @@ class BinanceBotPrinter
    {
       $this->addLine( "Sell Limits Orders" );
       $this->addLine( " " . $this->ordersTotalLine );
-      $this->addLine( sprintf($this->ordersMaskTitle, '#', 'Symbol', 'Side', 'Type', 'Q', 'BTC/Unit', 'TotalBTC', 'USD/Unit', 'TotalUSD', 'CTotal', 'C/Unit', 'C%', '3m' ,'15m', '1hr' ) );
+      $this->addLine( sprintf($this->ordersMaskTitle, '#', 'Symbol', 'Side', 'Type', 'Q', BinanceBotSettings::getInstance()->base_currency. '/Unit', 'Total' . BinanceBotSettings::getInstance()->base_currency, 'USD/Unit', 'TotalUSD', 'CTotal', 'C/Unit', 'C%', '3m' ,'15m', '1hr' ) );
       $this->addLine( " " . $this->ordersTotalLine );
 
       $numid = 1;
       foreach( $this->_orders->getAllOpenSellOrders() as $order )
       {
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBTCUSD(),2);
+         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
+         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $diff = $orderTotalUsd - $currentTotalUsd;
          $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 2);
          $diffpercent = round( ( abs( $diff ) / $orderTotalUsd ) * 100 );
@@ -168,7 +172,7 @@ class BinanceBotPrinter
                         round($order['origQty'],3),
                         $order['price'],
                         $order['price'] * $order['origQty'],
-                        round($order['price'] * BinanceBotPrices::getBTCUSD(), 2),
+                        round($order['price'] * BinanceBotPrices::getBaseCurrencyUSD(), 2),
                         $orderTotalUsd,
                         round( $diff, 2),
                         $diffunit,

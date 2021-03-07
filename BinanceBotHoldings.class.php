@@ -43,10 +43,10 @@ class BinanceBotHoldings
       {
          $updated = $this->_api->balances( $this->_prices->getAllPrices() );
          asort( $updated );
-         if( $this->balances != null && $updated[ 'BTC' ][ 'available' ] != $this->balances[ 'BTC' ][ 'available' ] )
+         if( $this->balances != null && $updated[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] != $this->balances[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] )
          {
             $txt = $this->getBTCTotal();
-            $myfile = file_put_contents( BinanceBotSettings::getInstance()->btcTrackerFile, $txt.PHP_EOL , FILE_APPEND | LOCK_EX);
+            $myfile = file_put_contents( BinanceBotSettings::getInstance()->baseCurrencyTrackerFile, $txt.PHP_EOL , FILE_APPEND | LOCK_EX);
             $this->balancesChanged = true;
          }
          $this->balances = $updated;
@@ -98,14 +98,14 @@ class BinanceBotHoldings
       return $this->wallet;
    }
 
-   public function getBTCAvailable()
+   public function getBaseCurrencyAvailable()
    {
-      if( !isset( $this->balances[ 'BTC' ] ) )
+      if( !isset( $this->balances[ BinanceBotSettings::getInstance()->base_currency ] ) )
       {
          @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
          $this->update();
       }
-      return $this->balances[ 'BTC' ][ 'available' ];
+      return $this->balances[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ];
    }
 
    public function getBTCTotal()
@@ -145,7 +145,7 @@ class BinanceBotHoldings
             $eurtotal = $exchange_rate_eur * $data['btcTotal'];
 
             $this->holdings[ $symbol ] = $usdtotal;
-            if( $data['available'] > 0.00000000 )
+            if( $data['available'] > 0.00000000 || $data['onOrder'] > 0.00000000 )
             {
                $this->wallet[] = array( $symbol, $data['available'], $data['onOrder'], $btcvalue, round( $usdvalue, 2 ), $btctotal, round( $usdtotal, 2 ), round( $eurtotal, 2 ) );
             }

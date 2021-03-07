@@ -50,7 +50,7 @@ class BasicTransactionStrategy extends TransactionStrategy
             continue;
          }
 
-         if( $price < BinanceBotSettings::getInstance()->max_unit_price_btc )
+         if( $price < BinanceBotSettings::getInstance()->max_unit_price )
          {
             if( $this->api->prevDay( $symbol )[ 'priceChangePercent' ] < BinanceBotSettings::getInstance()->downward_trigger_percent )
             {
@@ -98,7 +98,7 @@ class BasicTransactionStrategy extends TransactionStrategy
          }
       }
 
-      $quantity = round( BinanceBotSettings::getInstance()->buy_total_amount_btc / ( $pennyStocks[ $buysymbol ] * BinanceBotSettings::getInstance()->buy_at_percent ) );
+      $quantity = round( BinanceBotSettings::getInstance()->buy_total_amount / ( $pennyStocks[ $buysymbol ] * BinanceBotSettings::getInstance()->buy_at_percent ) );
 
       $response = $this->BinanceBotOrders->placeBuyOrder( $buysymbol, sprintf( "%f", $pennyStocks[ $buysymbol ] * BinanceBotSettings::getInstance()->buy_at_percent ), $quantity );
       //print_r( $response );
@@ -170,7 +170,7 @@ class BasicTransactionStrategy extends TransactionStrategy
 
       if( $side == "BUY" )
       {
-         if( $this->BinanceBotHoldings->getBTCAvailable() < BinanceBotSettings::getInstance()->btc_reserve_amount )
+         if( $this->BinanceBotHoldings->getBaseCurrencyAvailable() < BinanceBotSettings::getInstance()->reserve_amount )
          {
             return;
          }

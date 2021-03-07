@@ -30,7 +30,18 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       for( $i = 0; $i < count( $orders ) -1 - BinanceBotSettings::getInstance()->max_open_buy_orders; $i++ )
       {
-         $this->BinanceBotOrders->cancelBuyOrder( $orders[$i]['symbol'], $orders[$i][ 'orderId' ] );
+         if(BinanceBotSettings::getInstance()->test == false) {
+            try { 
+               $res = $this->BinanceBotOrders->cancelBuyOrder( $orders[$i]['symbol'], $orders[$i][ 'orderId' ] );
+               if(BinanceBotSettings::getInstance()->debug) {
+                  print("Cancel buy order result:\n");
+                  print_r($res);
+               }
+            } 
+            catch (Exception $e) {
+               print("Error: " . $e . "\n");
+            }
+         }
       }
    }
 
@@ -46,7 +57,7 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
          $gotSymbol = 0;
          $symbol = $weightedStocksKeys[ $t ];
 
-         if( $this->BinanceBotPrices->getPrice( $symbol ) < BinanceBotSettings::getInstance()->max_unit_price_btc )
+         if( $this->BinanceBotPrices->getPrice( $symbol ) < BinanceBotSettings::getInstance()->max_unit_price )
          {
             if( $this->api->prevDay( $symbol )[ 'priceChangePercent' ] < BinanceBotSettings::getInstance()->downward_trigger_percent )
             {
@@ -83,7 +94,10 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       $buysymbol = array_rand( $pennyStocks );
 
-      print_r( $pennyStocks );
+      if(BinanceBotSettings::getInstance()->debug) {
+         print("Penny stocks\n");
+         print_r( $pennyStocks );
+      }
 
       list( $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg ) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval( $buysymbol, BinanceBotSettings::getInstance()->investment_period );
 
@@ -93,16 +107,31 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       $buy_price = ( $avgByBuyPercent < $symbolPeriodLow ) ? $symbolPeriodLow : $avgByBuyPercent;
 
-      $quantity = round( BinanceBotSettings::getInstance()->buy_total_amount_btc / $buy_price );
+      $quantity = round( BinanceBotSettings::getInstance()->buy_total_amount / $buy_price );
 
-      $response = $this->BinanceBotOrders->placeBuyOrder( $buysymbol, sprintf( "%f", $buy_price ), $quantity );
-      //print_r( $response );
-      printf( "Period low: %f, high: %f, average: %f, sought: %f\n", $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg, $avgByBuyPercent );
+      if(BinanceBotSettings::getInstance()->test == false) { 
+         try {
+            $response = $this->BinanceBotOrders->placeBuyOrder( $buysymbol, sprintf( "%f", $buy_price ), $quantity );
+            if(BinanceBotSettings::getInstance()->debug) {
+               print("Buy order result:\n");
+               print_r($response);
+            }
+         } 
+         catch (Exception $e) {
+            print("Error: " . $e . "\n");
+         }
+      }
+      
+      printf( "\nPeriod low: %f, high: %f, average: %f, sought: %f\n", $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg, $avgByBuyPercent );
       printf( "Buy %s of %s @ %f\n", $quantity, $buysymbol, $buy_price );
    }
 
    public function placeSellOrder()
    {
+      if(BinanceBotSettings::getInstance()->debug) {
+         print("Place sell order:\n");
+      }
+
       $numorders = 0;
 
       foreach( $this->BinanceBotHoldings->getBalances() as $symbol => $data )
@@ -110,11 +139,21 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
          if( $symbol == BinanceBotSettings::getInstance()->base_currency ) continue;
 
          $openOrders = $this->BinanceBotOrders->getAllOpenSellOrdersBySymbol( $symbol . BinanceBotSettings::getInstance()->base_currency );
-         if( count( $openOrders ) > 0 ) continue;
+
+         if( count( $openOrders ) > 0 ) continue; 
 
          if( $data[ 'available' ] >= 1.00 ) // 1.00
          {
+            if(BinanceBotSettings::getInstance()->debug) {
+               print("$symbol available = " . $data[ 'available' ] ."\n");
+            }  
+
             $orders = array_reverse( $this->BinanceBotOrders->getAllBuyOrders( $symbol . BinanceBotSettings::getInstance()->base_currency) );
+
+            if(BinanceBotSettings::getInstance()->debug) {
+               print("getAllBuyOrders $symbol\n");
+               print_r($orders);
+            }
 
             foreach( $orders as $ordernum => $orderdetails )
             {
@@ -134,7 +173,18 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
                print $symbol . BinanceBotSettings::getInstance()->base_currency . " " . floor( $data[ 'available' ] ) . " * " . sprintf( "%f", $sell_price ) ."\n";
                printf( $symbol . BinanceBotSettings::getInstance()->base_currency . " %f \n", ( floor( $data[ 'available' ] ) * $sell_price ) );
 
-               $response = $this->BinanceBotOrders->placeSellOrder( $symbol . BinanceBotSettings::getInstance()->base_currency, sprintf( "%f", $sell_price ), floor( $data[ 'available' ] ) );
+               if(BinanceBotSettings::getInstance()->test == false) { 
+                  try {
+                     $response = $this->BinanceBotOrders->placeSellOrder( $symbol . BinanceBotSettings::getInstance()->base_currency, sprintf( "%f", $sell_price ), floor( $data[ 'available' ] ) );
+                     if(BinanceBotSettings::getInstance()->debug) {
+                        print("Sell order result:n");
+                        print_r($response);
+                     }
+                  } 
+                  catch (Exception $e) {
+                     print("Error: " . $e . "\n");
+                  }
+               }
 
                printf( "Sell %s @ %f\n", $symbol, $sell_price );
                $numorders++;
@@ -170,7 +220,18 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
             if( $side == "BUY" && ( $TotalPriceUSDDifferencePercent < BinanceBotSettings::getInstance()->cancel_buy_at_lower_percent || $TotalPriceUSDDifferencePercent > BinanceBotSettings::getInstance()->cancel_buy_at_upper_percent ) )
             {
-               $this->BinanceBotOrders->cancelBuyOrder( $symbol, $orderdetails[ 'orderId' ] );
+               if(BinanceBotSettings::getInstance()->test == false) { 
+                  try {
+                     $response = $this->BinanceBotOrders->cancelBuyOrder( $symbol, $orderdetails[ 'orderId' ] );
+                     if(BinanceBotSettings::getInstance()->debug) {
+                        print("Cancel buy order result:\n");
+                        print_r($response);
+                     }
+                  } 
+                  catch (Exception $e) {
+                     print("Error: " . $e . "\n");
+                  }
+               }
             }
 
             $numOrders++;
@@ -195,7 +256,7 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       if( $side == "BUY" )
       {
-         if( $this->BinanceBotHoldings->getBTCAvailable() < BinanceBotSettings::getInstance()->btc_reserve_amount )
+         if( $this->BinanceBotHoldings->getBaseCurrencyAvailable() < BinanceBotSettings::getInstance()->reserve_amount )
          {
             return;
          }
