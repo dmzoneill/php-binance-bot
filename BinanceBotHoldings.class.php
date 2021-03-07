@@ -2,6 +2,8 @@
 
 namespace BinanceBot;
 
+use \Exception as Exception;
+
 class BinanceBotHoldings
 {
    private $_api = null;
@@ -41,13 +43,17 @@ class BinanceBotHoldings
       }
       else
       {
-         $updated = $this->_api->balances( $this->_prices->getAllPrices() );
-         asort( $updated );
-         if( $this->balances != null && $updated[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] != $this->balances[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] )
-         {
-            $txt = $this->getBTCTotal();
-            $myfile = file_put_contents( BinanceBotSettings::getInstance()->baseCurrencyTrackerFile, $txt.PHP_EOL , FILE_APPEND | LOCK_EX);
-            $this->balancesChanged = true;
+         try {
+            $updated = $this->_api->balances( $this->_prices->getAllPrices() );
+            asort( $updated );
+            if( $this->balances != null && $updated[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] != $this->balances[ BinanceBotSettings::getInstance()->base_currency ][ 'available' ] )
+            {
+               $txt = $this->getBTCTotal();
+               $myfile = file_put_contents( BinanceBotSettings::getInstance()->baseCurrencyTrackerFile, $txt.PHP_EOL , FILE_APPEND | LOCK_EX);
+               $this->balancesChanged = true;
+            }
+         } catch(Exception $e){
+            print($e);
          }
          $this->balances = $updated;
       }

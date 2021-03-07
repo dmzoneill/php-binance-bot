@@ -47,10 +47,19 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
    public function placeBuyOrder()
    {
+      if(BinanceBotSettings::getInstance()->debug) {
+         print("Place buy order:\n");
+      }
+
       $weightedStocks = $this->BinanceBotCandles->getBestStocks();
       $weightedStocksKeys = array_keys( $weightedStocks );
       $delim = count( $weightedStocks ) > BinanceBotSettings::getInstance()->max_open_buy_orders * 2 ? BinanceBotSettings::getInstance()->max_open_buy_orders * 2 : count( $weightedStocks );
       $pennyStocks = array();
+
+      if(BinanceBotSettings::getInstance()->debug) {
+         print("Weighted stocks\n");
+         print_r($weightedStocksKeys);
+      }
 
       for( $t = 0; $t < $delim; $t++ )
       {
@@ -59,8 +68,16 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
          if( $this->BinanceBotPrices->getPrice( $symbol ) < BinanceBotSettings::getInstance()->max_unit_price )
          {
+            if(BinanceBotSettings::getInstance()->debug) {
+               print("Unit price $symbol < " . BinanceBotSettings::getInstance()->max_unit_price . "\n");
+            }
+
             if( $this->api->prevDay( $symbol )[ 'priceChangePercent' ] < BinanceBotSettings::getInstance()->downward_trigger_percent )
             {
+               if(BinanceBotSettings::getInstance()->debug) {
+                  print("Percent $symbol " . $this->api->prevDay( $symbol )[ 'priceChangePercent' ] . " < " . BinanceBotSettings::getInstance()->downward_trigger_percent . "\n");
+               }
+
                if( count( $this->BinanceBotOrders->getAllOpenSellOrdersBySymbol( $symbol ) ) > 0 )
                {
                   continue;

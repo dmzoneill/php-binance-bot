@@ -4,30 +4,30 @@
     "debug": true,
 
   "##### binance account settings #####": false,
-    "apikey": "0MvRXIFXWZT...................xPsYvfUg9R8r5Ly0",
-    "prikey": "LTmcE05iiUz.............We39CJNrdwdlv2SiiqxenXe",
+    "apikey": "0MvRXIFXWZTrqLZAzxz....PsYvfUg9R8r5Ly0",
+    "prikey": "LTmcE05iiUzWFh0B......JNrdwdlv2SiiqxenXe",
 
   "##### coinranking.com api key": false,
-    "cr_apikey": "coinranking2c..............1f0e7c9af1f56fd9f40",
+    "cr_apikey": "coinranking2c5846f.....cf41f0e7c9af1f56fd9f40",
 
   "##### Basic buy settings #####": false,
     "base_currency":"BNB",
     "strategy": "PeriodBasedTransactionStrategy",
     "max_open_buy_orders": 5,
     "max_open_sell_orders": 5,
-    "buy_at_percent": 0.84,
-    "sell_at_percent": 1.30,
-    "cancel_buy_at_lower_percent": 78,
-    "cancel_buy_at_upper_percent": 136,
+    "buy_at_percent": 0.90,
+    "sell_at_percent": 1.10,
+    "cancel_buy_at_lower_percent": 89,
+    "cancel_buy_at_upper_percent": 111,
     "investment_period": "3m",
     "#investment_period": "3m",
     "#investment_period": "15m",
     "#investment_period": "1h",
 
   "##### Advanced buy settings #####": false,
-    "max_unit_price": 0.005,
-    "downward_trigger_percent": -2.00,
-    "buy_total_amount": 0.075,
+    "max_unit_price": 0.05,
+    "downward_trigger_percent": -1.75,
+    "buy_total_amount": 0.1,
     "ignore_less_than_amount_dollars": 10,
     "reserve_amount": 0.1,
 
@@ -45,5 +45,5 @@
     "smsGateway": "EirSMS",
     "smsGatewayUsername": "dmz.oneill@gmail.com",
     "smsGatewayPassword": "...........",
-    "smsGatewayRecipientNumber": "+353861934567"
+    "smsGatewayRecipientNumber": "+353861938787"
 }
