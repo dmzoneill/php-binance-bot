@@ -86,7 +86,30 @@ class BinanceBotHoldings
 
    public function getBalances()
    {
-      return $this->balances;
+      $ignored_coins = [];
+      $temp_ignored_coins = [];
+      if(strlen(BinanceBotSettings::getInstance()->ignored_coins) > 0) {
+         if(stristr($ignored_coins, ",")) {
+            $temp_ignored_coins = explode(",", BinanceBotSettings::getInstance()->ignored_coins);
+         } else {
+            $temp_ignored_coins = [BinanceBotSettings::getInstance()->ignored_coins . BinanceBotSettings::getInstance()->base_currency];
+         }
+         foreach($temp_ignored_coins as $coin) {
+            $ignored_coins[] = $coin . BinanceBotSettings::getInstance()->base_currency;
+         }
+      }
+
+      $temp = [];
+
+      foreach( $this->balances as $symbol => $data )
+      {
+         if(in_array($symbol, $ignored_coins)) {
+            continue;
+         }
+         $temp[$symbol] = $data;
+      }
+
+      return $temp;
    }
 
    public function getHoldings( $symbol )

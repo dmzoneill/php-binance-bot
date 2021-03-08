@@ -326,8 +326,28 @@ class BinanceBotCandles
          return array_reverse( $this->retracements );
       }
 
+      $ignored_coins = [];
+      $temp_ignored_coins = [];
+      if(strlen(BinanceBotSettings::getInstance()->ignored_coins) > 0) {
+         if(stristr($ignored_coins, ",")) {
+            $temp_ignored_coins = explode(",", BinanceBotSettings::getInstance()->ignored_coins);
+         } else {
+            $temp_ignored_coins = [BinanceBotSettings::getInstance()->ignored_coins . BinanceBotSettings::getInstance()->base_currency];
+         }
+         foreach($temp_ignored_coins as $coin) {
+            $ignored_coins[] = $coin . BinanceBotSettings::getInstance()->base_currency;
+         }
+      }
+
+
       foreach( $this->candles as $symbol => $candle )
       {
+         if(count($ignored_coins) > 0) {
+            if(in_array($symbol, $ignored_coins )) {
+               continue;
+            }
+         }
+
          if( substr( $symbol, strlen( BinanceBotSettings::getInstance()->base_currency ) * -1 ) != BinanceBotSettings::getInstance()->base_currency ) continue;
 
          $m1 = $this->largestRetracement( $symbol, "3m" );

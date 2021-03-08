@@ -4,11 +4,11 @@
     "debug": true,
 
   "##### binance account settings #####": false,
-    "apikey": "0MvRXIFXWZTrqLZAzxz....PsYvfUg9R8r5Ly0",
-    "prikey": "LTmcE05iiUzWFh0B......JNrdwdlv2SiiqxenXe",
+    "apikey": "0MvRXIFXWZTrqLZAzxzMGH....YvfUg9R8r5Ly0",
+    "prikey": "LTmcE05iiUzW.....q7We39CJNrdwdlv2SiiqxenXe",
 
   "##### coinranking.com api key": false,
-    "cr_apikey": "coinranking2c5846f.....cf41f0e7c9af1f56fd9f40",
+    "cr_apikey": "coinranking2c5..............7077cf41f0e7c9af1f56fd9f40",
 
   "##### Basic buy settings #####": false,
     "base_currency":"BNB",
@@ -30,6 +30,7 @@
     "buy_total_amount": 0.1,
     "ignore_less_than_amount_dollars": 10,
     "reserve_amount": 0.1,
+    "ignore_coins": "BAKE,BNC,OST",
 
   "##### Cache file settings #####": false,
     "cachedir": "cache",
