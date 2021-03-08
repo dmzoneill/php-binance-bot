@@ -339,11 +339,18 @@ class BinanceBotCandles
          }
       }
 
+      if(BinanceBotSettings::getInstance()->debug) {
+         print(__FUNCTION__ . ":" . __LINE__ . " ignored coins:\n");
+         print_r($ignored_coins);
+      }
 
       foreach( $this->candles as $symbol => $candle )
       {
          if(count($ignored_coins) > 0) {
             if(in_array($symbol, $ignored_coins )) {
+               if(BinanceBotSettings::getInstance()->debug) {
+                  print(__FUNCTION__ . ":" . __LINE__ . " ignored coin $symbol \n");
+               }
                continue;
             }
          }

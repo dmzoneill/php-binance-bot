@@ -99,11 +99,19 @@ class BinanceBotHoldings
          }
       }
 
+      if(BinanceBotSettings::getInstance()->debug) {
+         print(__FUNCTION__ . ":" . __LINE__ . " ignored coins:\n");
+         print_r($ignored_coins);
+      }
+
       $temp = [];
 
       foreach( $this->balances as $symbol => $data )
       {
          if(in_array($symbol, $ignored_coins)) {
+            if(BinanceBotSettings::getInstance()->debug) {
+               print(__FUNCTION__ . ":" . __LINE__ . " ignored coin $symbol \n");
+            }
             continue;
          }
          $temp[$symbol] = $data;
