@@ -329,7 +329,7 @@ class BinanceBotCandles
       $ignored_coins = [];
       $temp_ignored_coins = [];
       if(strlen(BinanceBotSettings::getInstance()->ignored_coins) > 0) {
-         if(stristr($ignored_coins, ",")) {
+         if(stristr(BinanceBotSettings::getInstance()->ignored_coins, ",")) {
             $temp_ignored_coins = explode(",", BinanceBotSettings::getInstance()->ignored_coins);
          } else {
             $temp_ignored_coins = [BinanceBotSettings::getInstance()->ignored_coins . BinanceBotSettings::getInstance()->base_currency];
