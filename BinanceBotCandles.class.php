@@ -2,6 +2,7 @@
 
 namespace BinanceBot;
 
+/*
 class BinanceBotCandleWorker extends \Thread
 {
    private $_api = null;
@@ -30,6 +31,7 @@ class BinanceBotCandleWorker extends \Thread
       }, $this );
    }
 }
+*/
 
 class BinanceBotCandles
 {
@@ -165,44 +167,16 @@ class BinanceBotCandles
          {
             if( $this->candles[ $symbol ][ 'lastupdate' . $interval ] < time() - $intervaltime[0] )
             {
-               $data = new \Volatile;
-               $worker = new BinanceBotCandleWorker( $data );
-               $worker->setup( array( $this->_api, $symbol, $interval, $intervaltime ) );
-               $worker->start();
-               $workers[] = $worker;
-               $volitiles[] = $data;
-               usleep( 500000 );
-               $maxUpdates--;
+               $data = $this->_api->candlesticks($symbol, $interval);
+               $this->candles[ $symbol ][ $interval ] = $data;
+               $this->candles[ $symbol ][ 'lastupdate' . $interval ] = time() + rand( 1, $intervaltime[0] );
+               $this->candles[ $symbol ][ 'lastupdate' . $interval . 'Trend' ] = $this->calcTrend( $symbol, $interval );
+               $this->candles[ $symbol ][ $interval . 'RetracementPercent' ] = $this->calcRetracement( $symbol, $interval );
+               $this->_api->addToTransfered( strlen( json_encode( $this->candles[ $symbol ][ $interval ] ) ) );
+               print(".");
                $this->invalidRetracements = true;
             }
          }
-
-         if( $maxUpdates <= 0 )
-         {
-            break;
-         }
-      }
-
-      if( $maxUpdates != 10 )
-      {
-         $stopper = count( $volitiles );
-         while( $stopper > 0 )
-         {
-            foreach( $volitiles as $volitile )
-            {
-               if( isset( $volitile[ 'isdone' ] ) )
-               {
-                  $this->candles[ (string) $volitile->symbol ][ (string) $volitile->interval ] = (array) $volitile->data;
-                  $this->candles[ (string) $volitile->symbol ][ 'lastupdate' . (string) $volitile->interval ] = time() + rand( 1, ( (array) $volitile->intervaltime )[0] );
-                  $this->candles[ (string) $volitile->symbol ][ 'lastupdate' . (string) $volitile->interval . 'Trend' ] = $this->calcTrend( (string) $volitile->symbol, (string) $volitile->interval );
-                  $this->candles[ (string) $volitile->symbol ][ (string) $volitile->interval . 'RetracementPercent' ] = $this->calcRetracement( (string) $volitile->symbol, (string) $volitile->interval );
-                  $this->_api->addToTransfered( strlen( json_encode( $this->candles[ (string) $volitile->symbol ][ (string) $volitile->interval ] ) ) );
-                  $stopper--;
-               }
-            }
-         }
-
-         return false;
       }
 
       return true;

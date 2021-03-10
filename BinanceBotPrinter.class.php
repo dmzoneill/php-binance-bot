@@ -110,7 +110,7 @@ class BinanceBotPrinter
          $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $diff = $orderTotalUsd - $currentTotalUsd;
-         $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 2);
+         $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 3);
          $diffpercent = round( ( abs( $diff ) / $orderTotalUsd ) * 100 );
 
          $mask = $this->ordersMask;
@@ -156,7 +156,7 @@ class BinanceBotPrinter
          $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
          $diff = $orderTotalUsd - $currentTotalUsd;
-         $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 2);
+         $diffunit = $order['origQty'] < 1 ? $diff : round( $diff / $order['origQty'], 3);
          $diffpercent = round( ( abs( $diff ) / $orderTotalUsd ) * 100 );
 
          $mask = $this->ordersMask;

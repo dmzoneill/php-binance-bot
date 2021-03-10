@@ -85,7 +85,7 @@ class BinanceBotPrices
    private static function getEuroMultiplier() {
       $xml = file_get_contents("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml");
       $obj = simplexml_load_string($xml);
-      return abs($obj->Cube->Cube->Cube[0]['rate'] - 2);
+      return abs($obj->Cube->Cube->Cube[0]['rate'] -2);
    }
 
    public static function getMarketPrice($base, $currency = "BTC")

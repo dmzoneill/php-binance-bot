@@ -1,8 +1,5 @@
 # PHP Binance Bot
 
-# This requires threaded php
-https://github.com/dmzoneill/php-binance-bot/blob/master/README-pthreads.md
-
 ## Based on
 https://github.com/jaggedsoft/php-binance-api
 

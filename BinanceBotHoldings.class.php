@@ -101,7 +101,7 @@ class BinanceBotHoldings
 
       if(BinanceBotSettings::getInstance()->debug) {
          print(__FUNCTION__ . ":" . __LINE__ . " ignored coins:\n");
-         print_r($ignored_coins);
+         print(implode(",", $ignored_coins) . "\n");
       }
 
       $temp = [];

@@ -58,7 +58,7 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       if(BinanceBotSettings::getInstance()->debug) {
          print(__FUNCTION__ . ":" . __LINE__ . " Weighted stocks\n");
-         print_r($weightedStocksKeys);
+         print(implode(",", $weightedStocksKeys) . "\n");
       }
 
       for( $t = 0; $t < $delim; $t++ )
@@ -113,7 +113,7 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
       if(BinanceBotSettings::getInstance()->debug) {
          print(__FUNCTION__ . ":" . __LINE__ . " Penny stocks\n");
-         print_r( $pennyStocks );
+         print(implode(",", $pennyStocks) . "\n");
       }
 
       list( $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg ) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval( $buysymbol, BinanceBotSettings::getInstance()->investment_period );
@@ -169,7 +169,7 @@ class PeriodBasedTransactionStrategy extends TransactionStrategy
 
             if(BinanceBotSettings::getInstance()->debug) {
                print(__FUNCTION__ . ":" . __LINE__ . " getAllBuyOrders $symbol\n");
-               print_r($orders);
+               print(implode(",", $orders) . "\n");
             }
 
             foreach( $orders as $ordernum => $orderdetails )
