@@ -4,47 +4,77 @@ namespace BinanceBot;
 
 class EirSMS implements ISMSGateway
 {
-   private $cookie_file = "cookie.txt";
+    /** @var string */
+    private $cookie_file = "cookie.txt";
 
-   public function __construct()
-   {
+    /**
+     * @return void
+     */
+    public function __construct()
+    {
+    }
 
-   }
+    /**
+     * @param mixed $message
+     * @return void
+     */
+    #[\Override]
+    public function send($message)
+    {
+        $agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+            . '(KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36';
+        $this->request(
+            "https://my.eir.ie/login",
+            array(
+                CURLOPT_USERAGENT => $agent,
+            )
+        );
 
-   public function send( $message )
-   {
-      $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, "https://my.eir.ie/login");
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-      curl_setopt($ch, CURLOPT_HEADER, 0);
-      curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36');
-      curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_file);
-      curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_file);
-      curl_exec($ch);
-      curl_close($ch);
+        $this->request(
+            "https://my.eir.ie/rest/brand/3/portalUser/authenticate",
+            array(
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => "{\"emailAddress\":\"" . BinanceBotSettings::getInstance()->smsGatewayUsername
+                    . "\",\"password\":\"" . BinanceBotSettings::getInstance()->smsGatewayPassword . "\"}",
+                CURLOPT_HTTPHEADER => array('Content-Type:application/json'),
+            )
+        );
 
-      $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, "https://my.eir.ie/rest/brand/3/portalUser/authenticate");
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-      curl_setopt($ch, CURLOPT_HEADER, 0);
-      curl_setopt($ch, CURLOPT_POST, 1);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, "{\"emailAddress\":\"" . BinanceBotSettings::getInstance()->smsGatewayUsername . "\",\"password\":\"" . BinanceBotSettings::getInstance()->smsGatewayPassword . "\"}");
-      curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json' ) );
-      curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_file);
-      curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_file);
-      curl_exec($ch);
-      curl_close($ch);
+        $this->request(
+            "https://my.eir.ie/mobile/webtext/mobileNumbers/"
+                . BinanceBotSettings::getInstance()->smsGatewayRecipientNumber . "/messages?ts=" . time(),
+            array(
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => "{\"content\":\"" . $message . "\",\"recipients\":[\""
+                    . BinanceBotSettings::getInstance()->smsGatewayRecipientNumber . "\"]}",
+                CURLOPT_HTTPHEADER => array('Content-Type:application/json'),
+            )
+        );
+    }
 
-      $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, "https://my.eir.ie/mobile/webtext/mobileNumbers/" . BinanceBotSettings::getInstance()->smsGatewayRecipientNumber . "/messages?ts=" . time() );
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-      curl_setopt($ch, CURLOPT_HEADER, 0);
-      curl_setopt($ch, CURLOPT_POST, 1);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, "{\"content\":\"" . $message . "\",\"recipients\":[\"" . BinanceBotSettings::getInstance()->smsGatewayRecipientNumber . "\"]}");
-      curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type:application/json' ) );
-      curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_file);
-      curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_file);
-      $output = curl_exec($ch);
-      curl_close($ch);
-   }
+    /**
+     * @param string $url
+     * @param array<int, mixed> $options
+     * @return string|bool
+     */
+    private function request($url, $options)
+    {
+        $ch = curl_init();
+        if ($ch === false) {
+            return false;
+        }
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        foreach ($options as $option => $value) {
+            curl_setopt($ch, $option, $value);
+        }
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookie_file);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookie_file);
+        $output = curl_exec($ch);
+        curl_close($ch);
+
+        return $output;
+    }
 }
