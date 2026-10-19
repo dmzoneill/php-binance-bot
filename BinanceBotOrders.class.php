@@ -2,387 +2,359 @@
 
 namespace BinanceBot;
 
-use \Exception as Exception;
+use Exception;
 
-class BinanceBotOrders
+class BinanceBotOrders extends BinanceBotService
 {
-   private $_api = null;
-   private $_prices = null;
-   private $_smsGateway = null;
+    private mixed $orders = array();
 
-   private $orders = array();
+    #[\Override]
+    protected function cacheFile()
+    {
+        return BinanceBotSettings::getInstance()->cacheOrdersFile;
+    }
 
-   public function __construct( $arrs )
-   {
-      $this->_api = $arrs[1];
-      $this->_prices = $arrs[2];
-      $this->_smsGateway = $arrs[3];
+    #[\Override]
+    public function update(mixed $fresh = false)
+    {
+        if ($fresh == true) {
+            @unlink(BinanceBotSettings::getInstance()->cacheOrdersFile);
+        }
 
-      if( $arrs[0] == true )
-      {
-         @unlink( BinanceBotSettings::getInstance()->cacheOrdersFile );
-      }
+        $this->getAllOrders();
+    }
 
-      $this->update();
-   }
+    private function save(): void
+    {
+        file_put_contents(BinanceBotSettings::getInstance()->cacheOrdersFile, serialize($this->orders));
+    }
 
-   public function update( $fresh = false )
-   {
-      if( $fresh == true )
-      {
-         @unlink( BinanceBotSettings::getInstance()->cacheOrdersFile );
-      }
+    private function load(): void
+    {
+        $raw = file_get_contents(BinanceBotSettings::getInstance()->cacheOrdersFile);
+        if (is_string($raw)) {
+            $this->orders = unserialize($raw);
+        }
+    }
 
-      $this->getAllOrders();
-   }
+    /**
+     * @return void
+     */
+    private function getAllOrders()
+    {
+        if (file_exists(BinanceBotSettings::getInstance()->cacheOrdersFile)) {
+            $this->load();
+            return;
+        }
 
-   private function save()
-   {
-      file_put_contents( BinanceBotSettings::getInstance()->cacheOrdersFile, serialize( $this->orders ) );
-   }
+        print "\n";
 
-   private function load()
-   {
-      $this->orders = unserialize( file_get_contents( BinanceBotSettings::getInstance()->cacheOrdersFile ) );
-   }
+        $this->orders = array();
 
-   private function getAllOrders()
-   {
-      if( file_exists( BinanceBotSettings::getInstance()->cacheOrdersFile ) )
-      {
-         $this->load();
-         return;
-      }
+        $numSymbols = count($this->prices->getAllPrices());
+        $curnumSymbol = 1;
 
-      print "\n";
+        /** @var array<string, mixed> $priceMap */
+        $priceMap = $this->prices->getAllPrices();
+        foreach (array_keys($priceMap) as $symbol) {
+            if (
+                substr($symbol, strlen(BinanceBotSettings::getInstance()->base_currency) * -1)
+                != BinanceBotSettings::getInstance()->base_currency
+            ) {
+                $curnumSymbol++;
+                continue;
+            }
+            try {
+                print " Getting orders [$curnumSymbol/$numSymbols] " . $symbol . " ";
+                $this->loadSymbolOrders($symbol, false);
+            } catch (Exception $e) {
+                print($e);
+            }
 
-      $this->orders = array();
-
-      $numSymbols = count( $this->_prices->getAllPrices() );
-      $curnumSymbol = 1;
-
-      foreach( $this->_prices->getAllPrices() as $symbol => $data )
-      {
-         if( substr( $symbol, strlen( BinanceBotSettings::getInstance()->base_currency ) * -1 ) != BinanceBotSettings::getInstance()->base_currency )
-         {
+            print "\r";
+            print "\033[K";
             $curnumSymbol++;
-            continue;
-         }
-         try {
-            print " Getting orders [$curnumSymbol/$numSymbols] " . $symbol . " ";
-            $orders = $this->_api->orders( $symbol );
+        }
 
-            foreach( $orders as $ordernum => $orderdetails )
-            {
-               if( isset( $orderdetails[ 'status' ] ) == false ) continue;
-               $this->orders[$symbol][] = $orderdetails;
+        $this->save();
+
+        echo "\r\033[K\033[1A\r\033[K\r";
+        echo "\r\033[K\033[1A\r\033[K\r";
+        echo "\r\033[K\033[1A\r\033[K\r";
+    }
+
+    /**
+     */
+    private function getAllOpenOrders(): array
+    {
+        $orders = array();
+
+        foreach ($this->orders as $valueorder) {
+            foreach ($valueorder as $ordervalue) {
+                if ($ordervalue[ 'status' ] == "NEW") {
+                    $orders[] = $ordervalue;
+                }
             }
-         }
-         catch (Exception $e) 
-         {
-            print($e);
-         }
+        }
 
-         print "\r";
-         print "\033[K";
-         $curnumSymbol++;
-      }
+        return $orders;
+    }
 
-      $this->save();
-
-      echo "\r\033[K\033[1A\r\033[K\r";
-      echo "\r\033[K\033[1A\r\033[K\r";
-      echo "\r\033[K\033[1A\r\033[K\r";
-   }
-
-   private function getAllOpenOrders()
-   {
-      $orders = array();
-
-      foreach( $this->orders as $keysymbol => $valueorder )
-      {
-         foreach( $valueorder as $ordernum => $ordervalue )
-         {
-            if( $ordervalue[ 'status' ] == "NEW" )
-            {
-               $orders[] = $ordervalue;
+    /**
+     */
+    private function getAllOpenOrdersBySymbol(mixed $symbol): array
+    {
+        $matched = array();
+        foreach ($this->getAllOpenOrders() as $order) {
+            if ($order['symbol'] == $symbol) {
+                $matched[] = $order;
             }
-         }
-      }
+        }
 
-      return $orders;
-   }
+        return $matched;
+    }
 
-   private function getAllOpenOrdersBySymbol( $symbol )
-   {
-      return array_values(
-         array_filter(
-            $this->getAllOpenOrders(),
-            function( $v ) use ( $symbol )
-            {
-               return $v['symbol'] == $symbol;
+    public function getAllOpenBuyOrders(): mixed
+    {
+        return $this->filterBySide($this->getAllOpenOrders(), 'BUY');
+    }
+
+    public function getAllOpenSellOrders(): mixed
+    {
+        return $this->filterBySide($this->getAllOpenOrders(), 'SELL');
+    }
+
+    /**
+     *
+     */
+    private function filterBySide(mixed $orders, string $side): array
+    {
+        return array_values(
+            array_filter(
+                $orders,
+                function (mixed $v) use ($side) {
+                    return $v['side'] == $side;
+                }
+            )
+        );
+    }
+
+    /**
+     */
+    private function ordersBySide(mixed $symbol, string $side): mixed
+    {
+        if (in_array($symbol, array_keys($this->orders)) == false) {
+            return [];
+        }
+
+        return $this->filterBySide($this->orders[ $symbol ], $side);
+    }
+
+    public function getAllBuyOrders(mixed $symbol): mixed
+    {
+        return $this->ordersBySide($symbol, 'BUY');
+    }
+
+    public function getAllSellOrders(mixed $symbol): mixed
+    {
+        return $this->ordersBySide($symbol, 'SELL');
+    }
+
+    public function getAllOpenBuyOrdersBySymbol(mixed $symbol): mixed
+    {
+        return $this->filterBySide($this->getAllOpenOrdersBySymbol($symbol), 'BUY');
+    }
+
+    public function getAllOpenSellOrdersBySymbol(mixed $symbol): mixed
+    {
+        return $this->filterBySide($this->getAllOpenOrdersBySymbol($symbol), 'SELL');
+    }
+
+    private function loadSymbolOrders(mixed $symbol, bool $reset): void
+    {
+        if ($reset == true) {
+            $this->orders[$symbol] = array();
+        }
+
+        $orders = $this->api->orders($symbol);
+        foreach ($orders as $orderdetails) {
+            if (isset($orderdetails[ 'status' ]) == false) {
+                continue;
             }
-         )
-      );
-   }
+            $this->orders[$symbol][] = $orderdetails;
+        }
+    }
 
-   public function getAllOpenBuyOrders()
-   {
-      return array_values(
-         array_filter(
-            $this->getAllOpenOrders(),
-            function( $v )
-            {
-               return $v['side'] == 'BUY';
-            }
-         )
-      );
-   }
+    private function rememberPlacedOrder(mixed $symbol, mixed $price, mixed $quantity, string $label): void
+    {
+        $orders = array_reverse($this->api->openOrders($symbol));
+        $this->orders[ $symbol ][] = $orders[0];
+        $this->save();
 
-   public function getAllOpenSellOrders()
-   {
-      return array_values(
-         array_filter(
-            $this->getAllOpenOrders(),
-            function( $v )
-            {
-               return $v['side'] == 'SELL';
-            }
-         )
-      );
-   }
+        @unlink(BinanceBotSettings::getInstance()->cacheBalancesFile);
 
-   public function getAllBuyOrders( $symbol )
-   {
-      if(in_array($symbol, array_keys($this->orders)) == false) 
-      {
-         return [];
-      }
-      
-      return array_values(
-         array_filter(
-            $this->orders[ $symbol ],
-            function( $v )
-            {
-               return $v['side'] == 'BUY';
-            }
-         )
-      );
-   }
+        $this->smsGateway->send($label . ": $symbol - $price - $quantity");
+    }
 
-   public function getAllSellOrders( $symbol )
-   {
-      if(in_array($symbol, array_keys($this->orders)) == false) 
-      {
-         return [];
-      }
-      return array_values(
-         array_filter(
-            $this->orders[ $symbol ],
-            function( $v )
-            {
-               return $v['side'] == 'SELL';
-            }
-         )
-      );
-   }
+    /**
+     * @return (float|mixed|string)[]
+     *
+     */
+    private function accumulateOpenOrderTotals(mixed $orders): array
+    {
+        $cum_TotalPriceBTC = 0.0;
+        $cum_TotalPriceUSD = 0.0;
+        $cum_ChangePriceUSD = 0.0;
 
-   public function getAllOpenBuyOrdersBySymbol( $symbol )
-   {
-      return array_values(
-         array_filter(
-            $this->getAllOpenOrdersBySymbol( $symbol ),
-            function( $v )
-            {
-               return $v['side'] == 'BUY';
-            }
-         )
-      );
-   }
+        foreach ($orders as $order) {
+            $figures = $this->usdChangeForOrder($order);
+            $cum_TotalPriceBTC += $order['price'] * $order['origQty'];
+            $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBaseCurrencyUSD();
+            $cum_ChangePriceUSD += $figures['diff'];
+        }
 
-   public function getAllOpenSellOrdersBySymbol( $symbol )
-   {
-      return array_values(
-         array_filter(
-            $this->getAllOpenOrdersBySymbol( $symbol ),
-            function( $v )
-            {
-               return $v['side'] == 'SELL';
-            }
-         )
-      );
-   }
+        return array( "", $cum_TotalPriceBTC, round($cum_TotalPriceUSD, 2), $cum_ChangePriceUSD );
+    }
 
-   public function cancelBuyOrder( $symbol, $orderid )
-   {
-      print " Cancel buy order\n";
+    /**
+     * @return float[]
+     *
+     */
+    public function usdChangeForOrder(mixed $order): array
+    {
+        $rate = BinanceBotPrices::getBaseCurrencyUSD();
+        $orderTotalUsd = round($order['price'] * $order['origQty'] * $rate, 2);
+        $currentTotalUsd = round($this->prices->getPrice($order['symbol']) * $order['origQty'] * $rate, 2);
 
-      // cancel order if great than 50% change
-      $response = $this->_api->cancel( $symbol, $orderid );
-      
-      if(BinanceBotSettings::getInstance()->debug) {
-         print_r($response);
-      }
+        return array(
+         'orderTotalUsd' => $orderTotalUsd,
+         'currentTotalUsd' => $currentTotalUsd,
+         'diff' => $orderTotalUsd - $currentTotalUsd,
+        );
+    }
 
-      $this->orders[$symbol] = array();
+    public function cancelBuyOrder(mixed $symbol, mixed $orderid): int
+    {
+        print " Cancel buy order\n";
 
-      $orders = $this->_api->orders( $symbol );
-      foreach( $orders as $ordernum => $orderdetails )
-      {
-         if( isset( $orderdetails[ 'status' ] ) == false ) continue;
-         $this->orders[$symbol][] = $orderdetails;
-      }
+       // cancel order if great than 50% change
+        $response = $this->api->cancel($symbol, $orderid);
 
-      $this->save();
-
-      @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
-
-      $this->_smsGateway->send( "Cancelled: $symbol - $orderid" );
-
-      return 1;
-   }
-
-   public function placeBuyOrder( $symbol, $price, $quantity )
-   {
-      if(BinanceBotSettings::getInstance()->debug) {
-         print "Place buy order\n";
-      }
-      
-      try 
-      {
-         // open order already
-         if( count( $this->getAllOpenBuyOrdersBySymbol( $symbol ) ) > 0 ) return 0;
-         $response = $this->_api->buy( $symbol, $quantity, $price );
-
-         if(BinanceBotSettings::getInstance()->debug) {
+        if (BinanceBotSettings::getInstance()->debug) {
             print_r($response);
-         }
+        }
 
-         $orders = array_reverse( $this->_api->openOrders( $symbol ) );
-         $this->orders[ $symbol ][] = $orders[0];
-         $this->save();
-      
-         @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
+        $this->loadSymbolOrders($symbol, true);
 
-         $this->_smsGateway->send( "Buy Order: $symbol - $price - $quantity" );
-      }
-      catch (Exception $e) 
-      {
-         print($e);
-      }
+        $this->save();
 
-      return 1;
-   }
+        @unlink(BinanceBotSettings::getInstance()->cacheBalancesFile);
 
-   public function placeSellOrder( $symbol, $price, $quantity )
-   {
-      print " Place sell order\n";
+        $this->smsGateway->send("Cancelled: $symbol - $orderid");
 
-      // open order already
-      if( count( $this->getAllOpenSellOrdersBySymbol( $symbol ) ) > 0 ) return 0;
+        return 1;
+    }
 
-      $exchangeInfo = $this->_api->exchangeInfo();
-      $exchangeInfoSymbols = $exchangeInfo['symbols'];
+    public function placeBuyOrder(mixed $symbol, mixed $price, mixed $quantity): int
+    {
+        if (BinanceBotSettings::getInstance()->debug) {
+            print "Place buy order\n";
+        }
 
-      foreach( $exchangeInfoSymbols as $exchangeInfoSymbol )
-      {
-         if( $exchangeInfoSymbol['symbol'] == $symbol )
-         {
-            if(BinanceBotSettings::getInstance()->debug) {
-               print_r($exchangeInfoSymbol);
+        try {
+           // open order already
+            if (count($this->getAllOpenBuyOrdersBySymbol($symbol)) > 0) {
+                return 0;
             }
-         }
-      }
+            $response = $this->api->buy($symbol, $quantity, $price);
 
-      try {
-         $response = $this->_api->sell( $symbol, $quantity, $price );
-      }
-      catch(Exception $e) {
-         print($e);
-      }
-
-      if(BinanceBotSettings::getInstance()->debug) {
-         print_r($response);
-      }
-
-      $orders = array_reverse( $this->_api->openOrders( $symbol ) );
-      $this->orders[ $symbol ][] = $orders[0];
-      $this->save();
-
-      @unlink( BinanceBotSettings::getInstance()->cacheBalancesFile );
-
-      $this->_smsGateway->send( "Sell Order: $symbol - $price - $quantity" );
-
-      return 1;
-   }
-
-   public function getBuyOrderTotals()
-   {
-      $cum_TotalPriceBTC = 0;
-      $cum_TotalPriceUSD = 0;
-      $cum_ChangePriceUSD = 0;
-
-      foreach( $this->getAllOpenBuyOrders() as $order )
-      {
-         $cum_TotalPriceBTC += $order['price'] * $order['origQty'];
-         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBaseCurrencyUSD();
-
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
-         $cum_ChangePriceUSD += $orderTotalUsd - $currentTotalUsd;
-      }
-
-      return array( "", $cum_TotalPriceBTC, round( $cum_TotalPriceUSD, 2 ), $cum_ChangePriceUSD );
-   }
-
-   public function getSellOrderTotals()
-   {
-      $cum_TotalPriceBTC = 0;
-      $cum_TotalPriceUSD = 0;
-      $cum_ChangePriceUSD = 0;
-
-      foreach( $this->getAllOpenSellOrders() as $order )
-      {
-         $cum_TotalPriceBTC += $order['price'] * $order['origQty'];
-         $cum_TotalPriceUSD += ($order['price'] * $order['origQty']) * BinanceBotPrices::getBaseCurrencyUSD();
-
-         $orderTotalUsd = round($order['price'] * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
-         $currentTotalUsd = round($this->_prices->getPrice( $order['symbol'] ) * $order['origQty'] * BinanceBotPrices::getBaseCurrencyUSD(),2);
-         $cum_ChangePriceUSD += $orderTotalUsd - $currentTotalUsd;
-      }
-
-      return array( "", $cum_TotalPriceBTC, round( $cum_TotalPriceUSD, 2 ), $cum_ChangePriceUSD );
-   }
-
-   public function calculateOrderSummaryBTCEarnings()
-   {
-      $cumbuy = 0;
-      $cumsell = 0;
-      $buyfilled = 0;
-      $sellfilled = 0;
-
-      foreach($this->orders as $symbol => $orderarr )
-      {
-         $buy = 0;
-         $sell = 0;
-         foreach($orderarr as $odernum => $orderdetails )
-         {
-            if( $orderdetails['side'] == "BUY" && $orderdetails['status'] == "FILLED" )
-            {
-               $buy += $orderdetails[ 'price' ] * $orderdetails['executedQty'];
-               $buyfilled += 1;
+            if (BinanceBotSettings::getInstance()->debug) {
+                print_r($response);
             }
-            if( $orderdetails['side'] == "SELL" && $orderdetails['status'] == "FILLED" )
-            {
-               $sell += $orderdetails[ 'price' ] * $orderdetails['executedQty'];
-               $sellfilled += 1;
-            }
-         }
-         //printf( "%10s - % 11.8f\n", $symbol, ( $sell - $buy ) );
-         $cumbuy += $buy;
-         $cumsell += $sell;
-      }
 
-      return array( $cumbuy, $cumsell, $buyfilled, $sellfilled );
-   }
+            $this->rememberPlacedOrder($symbol, $price, $quantity, "Buy Order");
+        } catch (Exception $e) {
+            print($e);
+        }
+
+        return 1;
+    }
+
+    public function placeSellOrder(mixed $symbol, mixed $price, mixed $quantity): int
+    {
+        print " Place sell order\n";
+
+       // open order already
+        if (count($this->getAllOpenSellOrdersBySymbol($symbol)) > 0) {
+            return 0;
+        }
+
+        $exchangeInfo = $this->api->exchangeInfo();
+        $exchangeInfoSymbols = $exchangeInfo['symbols'];
+
+        foreach ($exchangeInfoSymbols as $exchangeInfoSymbol) {
+            if ($exchangeInfoSymbol['symbol'] == $symbol) {
+                if (BinanceBotSettings::getInstance()->debug) {
+                    print_r($exchangeInfoSymbol);
+                }
+            }
+        }
+
+        $response = null;
+        try {
+            $response = $this->api->sell($symbol, $quantity, $price);
+        } catch (Exception $e) {
+            print($e);
+        }
+
+        if (BinanceBotSettings::getInstance()->debug) {
+            print_r($response);
+        }
+
+        $this->rememberPlacedOrder($symbol, $price, $quantity, "Sell Order");
+
+        return 1;
+    }
+
+    public function getBuyOrderTotals(): mixed
+    {
+        return $this->accumulateOpenOrderTotals($this->getAllOpenBuyOrders());
+    }
+
+    public function getSellOrderTotals(): mixed
+    {
+        return $this->accumulateOpenOrderTotals($this->getAllOpenSellOrders());
+    }
+
+    /**
+     * @return (int|mixed)[]
+     *
+     */
+    public function calculateOrderSummaryBTCEarnings(): array
+    {
+        $cumbuy = 0;
+        $cumsell = 0;
+        $buyfilled = 0;
+        $sellfilled = 0;
+
+        foreach ($this->orders as $orderarr) {
+            $buy = 0;
+            $sell = 0;
+            foreach ($orderarr as $orderdetails) {
+                if ($orderdetails['side'] == "BUY" && $orderdetails['status'] == "FILLED") {
+                    $buy += $orderdetails[ 'price' ] * $orderdetails['executedQty'];
+                    $buyfilled += 1;
+                }
+                if ($orderdetails['side'] == "SELL" && $orderdetails['status'] == "FILLED") {
+                    $sell += $orderdetails[ 'price' ] * $orderdetails['executedQty'];
+                    $sellfilled += 1;
+                }
+            }
+           //printf( "%10s - % 11.8f\n", $symbol, ( $sell - $buy ) );
+            $cumbuy += $buy;
+            $cumsell += $sell;
+        }
+
+        return array( $cumbuy, $cumsell, $buyfilled, $sellfilled );
+    }
 }

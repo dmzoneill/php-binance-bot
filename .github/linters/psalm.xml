@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<psalm
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    autoloader="psalm-autoload.php"
+>
+    <stubs>
+        <file name="binance-api.stub.php" />
+    </stubs>
+</psalm>

@@ -2,302 +2,269 @@
 
 namespace BinanceBot;
 
+use Exception;
+
 class PeriodBasedTransactionStrategy extends TransactionStrategy
 {
-   public function __construct( $arrs )
-   {
-      parent::__construct( $arrs );
-   }
-
-   private function cancelAdditionalBuyOrders()
-   {
-      $orders = $this->BinanceBotOrders->getAllOpenBuyOrders();
-
-      usort( $orders, function ($a, $b)
-      {
-         $a_orderTotal = $a['price'] * $a['origQty'];
-         $a_currentTotal = $this->BinanceBotPrices->getPrice( $a['symbol'] ) * $a['origQty'];
-         $a_diff = $a_orderTotal - $a_currentTotal;
-         $a_diffpercent = round( ( abs( $a_diff ) / $a_orderTotal ) * 100 );
-
-         $b_orderTotal = $b['price'] * $b['origQty'];
-         $b_currentTotal = $this->BinanceBotPrices->getPrice( $b['symbol'] ) * $b['origQty'];
-         $b_diff = $b_orderTotal - $b_currentTotal;
-         $b_diffpercent = round( ( abs( $b_diff ) / $b_orderTotal ) * 100 );
-
-         return $a_diffpercent < $b_diffpercent;
-      });
-
-      for( $i = 0; $i < count( $orders ) -1 - BinanceBotSettings::getInstance()->max_open_buy_orders; $i++ )
-      {
-         if(BinanceBotSettings::getInstance()->test == false) {
-            try { 
-               $res = $this->BinanceBotOrders->cancelBuyOrder( $orders[$i]['symbol'], $orders[$i][ 'orderId' ] );
-               if(BinanceBotSettings::getInstance()->debug) {
-                  print(__FUNCTION__ . ":" . __LINE__ . " Cancel buy order result:\n");
-                  print_r($res);
-               }
-            } 
-            catch (Exception $e) {
-               print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e . "\n");
+    /**
+     * @param mixed $symbol
+     * @param mixed $orderId
+     * @return void
+     */
+    #[\Override]
+    protected function cancelTrackedBuyOrder($symbol, $orderId)
+    {
+        if (BinanceBotSettings::getInstance()->test == false) {
+            try {
+                $res = $this->BinanceBotOrders->cancelBuyOrder($symbol, $orderId);
+                if (BinanceBotSettings::getInstance()->debug) {
+                    print(__FUNCTION__ . ":" . __LINE__ . " Cancel buy order result:\n");
+                    print_r($res);
+                }
+            } catch (Exception $e) {
+                print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e->getMessage() . "\n");
             }
-         }
-      }
-   }
+        }
+    }
 
-   public function placeBuyOrder()
-   {
-      if(BinanceBotSettings::getInstance()->debug) {
-         print(__FUNCTION__ . ":" . __LINE__ . " Place buy order:\n");
-      }
-
-      $weightedStocks = $this->BinanceBotCandles->getBestStocks();
-      $weightedStocksKeys = array_keys( $weightedStocks );
-      $delim = count( $weightedStocks ) > BinanceBotSettings::getInstance()->max_open_buy_orders * 2 ? BinanceBotSettings::getInstance()->max_open_buy_orders * 2 : count( $weightedStocks );
-      $pennyStocks = array();
-
-      if(BinanceBotSettings::getInstance()->debug) {
-         print(__FUNCTION__ . ":" . __LINE__ . " Weighted stocks\n");
-         print(implode(",", $weightedStocksKeys) . "\n");
-      }
-
-      for( $t = 0; $t < $delim; $t++ )
-      {
-         $gotSymbol = 0;
-         $symbol = $weightedStocksKeys[ $t ];
-
-         if( $this->BinanceBotPrices->getPrice( $symbol ) < BinanceBotSettings::getInstance()->max_unit_price )
-         {
-            if(BinanceBotSettings::getInstance()->debug) {
-               print(__FUNCTION__ . ":" . __LINE__ . " Unit price $symbol < " . BinanceBotSettings::getInstance()->max_unit_price . "\n");
+    /**
+     * @param mixed $side
+     * @param int $numOrders
+     * @return bool
+     */
+    #[\Override]
+    protected function shouldAbortForCandles($side, $numOrders)
+    {
+        if ($side == "BUY" && $numOrders < BinanceBotSettings::getInstance()->max_open_buy_orders) {
+            if ($this->BinanceBotCandles->update() == true) {
+                return true;
             }
+        }
 
-            if( $this->api->prevDay( $symbol )[ 'priceChangePercent' ] < BinanceBotSettings::getInstance()->downward_trigger_percent )
-            {
-               if(BinanceBotSettings::getInstance()->debug) {
-                  print(__FUNCTION__ . ":" . __LINE__ . " Percent $symbol " . $this->api->prevDay( $symbol )[ 'priceChangePercent' ] . " < " . BinanceBotSettings::getInstance()->downward_trigger_percent . "\n");
-               }
-
-               if( count( $this->BinanceBotOrders->getAllOpenSellOrdersBySymbol( $symbol ) ) > 0 )
-               {
-                  continue;
-               }
-               if( count( $this->BinanceBotOrders->getAllOpenBuyOrdersBySymbol( $symbol ) ) > 0 )
-               {
-                  continue;
-               }
-
-               $gotSymbol = $this->BinanceBotHoldings->getHoldings( substr( $symbol, 0, strlen( BinanceBotSettings::getInstance()->base_currency ) * -1 ) );
-
-               if( $gotSymbol != false )
-               {
-                  if( $gotSymbol > BinanceBotSettings::getInstance()->ignore_less_than_amount_dollars )
-                  {
-                     continue;
-                  }
-               }
-
-               $pennyStocks[ $symbol ] = $this->BinanceBotPrices->getPrice( $symbol );
+        if ($side == "SELL" && $numOrders < BinanceBotSettings::getInstance()->max_open_sell_orders) {
+            if ($this->BinanceBotCandles->update() == true) {
+                return true;
             }
-         }
-      }
+        }
 
-      // no stocks meet criteria
-      if( count( $pennyStocks ) == 0 )
-      {
-         $this->BinanceBotPrices->forceupdate();
-         return 0;
-      }
+        return false;
+    }
 
-      $buysymbol = array_rand( $pennyStocks );
+    /**
+     * @return bool
+     */
+    #[\Override]
+    protected function updateCandlesBeforeBuy()
+    {
+        return false;
+    }
 
-      if(BinanceBotSettings::getInstance()->debug) {
-         print(__FUNCTION__ . ":" . __LINE__ . " Penny stocks\n");
-         print(implode(",", $pennyStocks) . "\n");
-      }
+    /**
+     * @param mixed $symbol
+     * @param array<string, mixed> $data
+     * @return void
+     */
+    #[\Override]
+    protected function beforeSellOrders($symbol, $data)
+    {
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " $symbol available = " . $data['available'] . "\n");
+        }
+    }
 
-      list( $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg ) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval( $buysymbol, BinanceBotSettings::getInstance()->investment_period );
+    /**
+     * @param mixed $symbol
+     * @param array<int, mixed> $orders
+     * @return void
+     */
+    #[\Override]
+    protected function afterSellOrdersLoaded($symbol, $orders)
+    {
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " getAllBuyOrders $symbol\n");
+            print(implode(",", $orders) . "\n");
+        }
+    }
 
-      if( $symbolPeriodLow == 0 && $symbolPeriodHigh == 0 && $symbolPeriodAvg == 0 ) return;
+    /**
+     * @return mixed
+     */
+    #[\Override]
+    public function placeBuyOrder()
+    {
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " Place buy order:\n");
+        }
 
-      $avgByBuyPercent = $symbolPeriodAvg * BinanceBotSettings::getInstance()->buy_at_percent;
+        /** @var array<string, mixed> $weightedStocks */
+        $weightedStocks = $this->BinanceBotCandles->getBestStocks();
+        $weightedStocksKeys = array_keys($weightedStocks);
+        $delim = count($weightedStocks) > BinanceBotSettings::getInstance()->max_open_buy_orders * 2
+            ? BinanceBotSettings::getInstance()->max_open_buy_orders * 2 : count($weightedStocks);
+        $pennyStocks = array();
 
-      $buy_price = ( $avgByBuyPercent < $symbolPeriodLow ) ? $symbolPeriodLow : $avgByBuyPercent;
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " Weighted stocks\n");
+            print(implode(",", $weightedStocksKeys) . "\n");
+        }
 
-      $quantity = round( BinanceBotSettings::getInstance()->buy_total_amount / $buy_price );
+        for ($t = 0; $t < $delim; $t++) {
+            $symbol = $weightedStocksKeys[$t];
 
-      if(BinanceBotSettings::getInstance()->test == false) { 
-         try {
-            $response = $this->BinanceBotOrders->placeBuyOrder( $buysymbol, sprintf( "%f", $buy_price ), $quantity );
-            if(BinanceBotSettings::getInstance()->debug) {
-               print(__FUNCTION__ . ":" . __LINE__ . " Buy order result:\n");
-               print_r($response);
+            if ($this->BinanceBotPrices->getPrice($symbol) < BinanceBotSettings::getInstance()->max_unit_price) {
+                if (BinanceBotSettings::getInstance()->debug) {
+                    print(__FUNCTION__ . ":" . __LINE__ . " Unit price $symbol < "
+                        . BinanceBotSettings::getInstance()->max_unit_price . "\n");
+                }
+
+                $change = $this->api->prevDay($symbol)['priceChangePercent'];
+                $trigger = BinanceBotSettings::getInstance()->downward_trigger_percent;
+                if ($change < $trigger) {
+                    if (BinanceBotSettings::getInstance()->debug) {
+                        print(__FUNCTION__ . ":" . __LINE__ . " Percent $symbol "
+                            . $this->api->prevDay($symbol)['priceChangePercent'] . " < "
+                                . BinanceBotSettings::getInstance()->downward_trigger_percent . "\n");
+                    }
+
+                    if (count($this->BinanceBotOrders->getAllOpenSellOrdersBySymbol($symbol)) > 0) {
+                        continue;
+                    }
+                    if (count($this->BinanceBotOrders->getAllOpenBuyOrdersBySymbol($symbol)) > 0) {
+                        continue;
+                    }
+
+                    $gotSymbol = $this->BinanceBotHoldings->getHoldings(substr(
+                        $symbol,
+                        0,
+                        strlen(BinanceBotSettings::getInstance()->base_currency) * -1
+                    ));
+
+                    if ($gotSymbol != false) {
+                        if ($gotSymbol > BinanceBotSettings::getInstance()->ignore_less_than_amount_dollars) {
+                            continue;
+                        }
+                    }
+
+                    $pennyStocks[$symbol] = $this->BinanceBotPrices->getPrice($symbol);
+                }
             }
-         } 
-         catch (Exception $e) {
-            print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e . "\n");
-         }
-      }
-      
-      printf( "\nPeriod low: %f, high: %f, average: %f, sought: %f\n", $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg, $avgByBuyPercent );
-      printf( "Buy %s of %s @ %f\n", $quantity, $buysymbol, $buy_price );
-   }
+        }
 
-   public function placeSellOrder()
-   {
-      if(BinanceBotSettings::getInstance()->debug) {
-         print(__FUNCTION__ . ":" . __LINE__ . " Place sell order:\n");
-      }
+        // no stocks meet criteria
+        if (count($pennyStocks) == 0) {
+            $this->BinanceBotPrices->forceupdate();
+            return 0;
+        }
 
-      $numorders = 0;
+        $buysymbol = array_rand($pennyStocks);
 
-      foreach( $this->BinanceBotHoldings->getBalances() as $symbol => $data )
-      {
-         if( $symbol == BinanceBotSettings::getInstance()->base_currency ) continue;
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " Penny stocks\n");
+            print(implode(",", $pennyStocks) . "\n");
+        }
 
-         $openOrders = $this->BinanceBotOrders->getAllOpenSellOrdersBySymbol( $symbol . BinanceBotSettings::getInstance()->base_currency );
+        list($symbolPeriodLow, $symbolPeriodHigh,
+            $symbolPeriodAvg) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval(
+                $buysymbol,
+                BinanceBotSettings::getInstance()->investment_period
+            );
 
-         if( count( $openOrders ) > 0 ) continue; 
-
-         if( $data[ 'available' ] >= 1.00 ) // 1.00
-         {
-            if(BinanceBotSettings::getInstance()->debug) {
-               print(__FUNCTION__ . ":" . __LINE__ . " $symbol available = " . $data[ 'available' ] ."\n");
-            }  
-
-            $orders = array_reverse( $this->BinanceBotOrders->getAllBuyOrders( $symbol . BinanceBotSettings::getInstance()->base_currency) );
-
-            if(BinanceBotSettings::getInstance()->debug) {
-               print(__FUNCTION__ . ":" . __LINE__ . " getAllBuyOrders $symbol\n");
-               print(implode(",", $orders) . "\n");
-            }
-
-            foreach( $orders as $ordernum => $orderdetails )
-            {
-               if( isset( $orderdetails[ 'status' ] ) == false ) continue;
-
-               list( $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg ) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval( $symbol . BinanceBotSettings::getInstance()->base_currency, BinanceBotSettings::getInstance()->investment_period );
-
-               if( $symbolPeriodLow == 0 && $symbolPeriodHigh == 0 && $symbolPeriodAvg == 0 ) break;
-
-               $avgBySellPercent = $symbolPeriodAvg * BinanceBotSettings::getInstance()->sell_at_percent;
-
-               printf( "Period low: %f, high: %f, average: %f, sought: %f\n", $symbolPeriodLow, $symbolPeriodHigh, $symbolPeriodAvg, $avgBySellPercent );
-
-               $sell_price = ( $avgBySellPercent > $symbolPeriodHigh ) ? $symbolPeriodHigh : $avgBySellPercent;
-               $sell_price = ( $sell_price < $orderdetails[ 'price' ] ) ? $orderdetails[ 'price' ] * BinanceBotSettings::getInstance()->sell_at_percent : $sell_price;
-
-               print __FUNCTION__ . ":" . __LINE__ . " " . $symbol . BinanceBotSettings::getInstance()->base_currency . " " . floor( $data[ 'available' ] ) . " * " . sprintf( "%f", $sell_price ) ."\n";
-               printf( $symbol . BinanceBotSettings::getInstance()->base_currency . " %f \n", ( floor( $data[ 'available' ] ) * $sell_price ) );
-
-               if(BinanceBotSettings::getInstance()->test == false) { 
-                  try {
-                     $response = $this->BinanceBotOrders->placeSellOrder( $symbol . BinanceBotSettings::getInstance()->base_currency, sprintf( "%f", $sell_price ), floor( $data[ 'available' ] ) );
-                     if(BinanceBotSettings::getInstance()->debug) {
-                        print(__FUNCTION__ . ":" . __LINE__ . " Sell order result:n");
-                        print_r($response);
-                     }
-                  } 
-                  catch (Exception $e) {
-                     print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e . "\n");
-                  }
-               }
-
-               printf(__FUNCTION__ . ":" . __LINE__ . " Sell %s @ %f\n", $symbol, $sell_price );
-               $numorders++;
-               break;
-            }
-         }
-      }
-
-      return $numorders;
-   }
-
-   public function LimitOrders( $side )
-   {
-      $exchange_rate = BinanceBotPrices::getBTCUSD();
-      $numOrders = 0;
-
-      foreach( $this->BinanceBotPrices->getAllPrices() as $symbol => $price )
-      {
-         $orders = ( $side == "SELL" ) ? $this->BinanceBotOrders->getAllOpenSellOrdersBySymbol( $symbol ) : $this->BinanceBotOrders->getAllOpenBuyOrdersBySymbol( $symbol );
-
-         foreach( $orders as $ordernum => $orderdetails )
-         {
-            $PriceBTC = $orderdetails['price'];
-            $PriceUSD = $exchange_rate * $PriceBTC;
-            $TotalPriceBTC = $PriceBTC * $orderdetails['origQty'];
-            $TotalPriceUSD = $exchange_rate * ( $PriceBTC * $orderdetails['origQty']);
-            $TotalPriceUSDCurrent = $exchange_rate * ( $this->BinanceBotPrices->getPrice( $symbol ) * $orderdetails['origQty'] );
-            $TotalPriceUSDDifferencePercent = round( ( $TotalPriceUSD / $TotalPriceUSDCurrent ) * 100 , 2 );
-
-            $Spread = ( $orderdetails['side'] == "SELL" ) ?
-                        $this->getSellSpread( $symbol, $TotalPriceUSD, $orderdetails['origQty'] ) :
-                        $this->getBuySpread( $symbol, $TotalPriceUSD, $orderdetails['origQty'] );
-
-            if( $side == "BUY" && ( $TotalPriceUSDDifferencePercent < BinanceBotSettings::getInstance()->cancel_buy_at_lower_percent || $TotalPriceUSDDifferencePercent > BinanceBotSettings::getInstance()->cancel_buy_at_upper_percent ) )
-            {
-               if(BinanceBotSettings::getInstance()->test == false) { 
-                  try {
-                     $response = $this->BinanceBotOrders->cancelBuyOrder( $symbol, $orderdetails[ 'orderId' ] );
-                     if(BinanceBotSettings::getInstance()->debug) {
-                        print(__FUNCTION__ . ":" . __LINE__ . " Cancel buy order result:\n");
-                        print_r($response);
-                     }
-                  } 
-                  catch (Exception $e) {
-                     print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e . "\n");
-                  }
-               }
-            }
-
-            $numOrders++;
-         }
-      }
-
-      if( $side == "BUY" && $numOrders < BinanceBotSettings::getInstance()->max_open_buy_orders )
-      {
-         if( $this->BinanceBotCandles->update() == true )
-         {
+        if ($symbolPeriodLow == 0 && $symbolPeriodHigh == 0 && $symbolPeriodAvg == 0) {
             return;
-         }
-      }
+        }
 
-      if( $side == "SELL" && $numOrders < BinanceBotSettings::getInstance()->max_open_sell_orders )
-      {
-         if( $this->BinanceBotCandles->update() == true )
-         {
-            return;
-         }
-      }
+        $avgByBuyPercent = $symbolPeriodAvg * BinanceBotSettings::getInstance()->buy_at_percent;
 
-      if( $side == "BUY" )
-      {
-         if( $this->BinanceBotHoldings->getBaseCurrencyAvailable() < BinanceBotSettings::getInstance()->reserve_amount )
-         {
-            return;
-         }
+        $buy_price = ($avgByBuyPercent < $symbolPeriodLow) ? $symbolPeriodLow : $avgByBuyPercent;
 
-         while( $numOrders < BinanceBotSettings::getInstance()->max_open_buy_orders )
-         {
-            $norders = $this->placeBuyOrder();
-            $numOrders++;
-            $numOrders = ( $norders == 0 ) ? BinanceBotSettings::getInstance()->max_open_buy_orders : $numOrders;
-         }
+        $quantity = round(BinanceBotSettings::getInstance()->buy_total_amount / $buy_price);
 
-         if( $numOrders > BinanceBotSettings::getInstance()->max_open_buy_orders )
-         {
-            $this->cancelAdditionalBuyOrders();
-         }
-      }
-      else
-      {
-         while( $numOrders < BinanceBotSettings::getInstance()->max_open_sell_orders )
-         {
-            $norders = $this->placeSellOrder();
-            $numOrders++;
-            $numOrders = ( $norders == 0 ) ? BinanceBotSettings::getInstance()->max_open_sell_orders : $numOrders;
-         }
-      }
-   }
+        if (BinanceBotSettings::getInstance()->test == false) {
+            try {
+                $response = $this->BinanceBotOrders->placeBuyOrder($buysymbol, sprintf("%f", $buy_price), $quantity);
+                if (BinanceBotSettings::getInstance()->debug) {
+                    print(__FUNCTION__ . ":" . __LINE__ . " Buy order result:\n");
+                    print_r($response);
+                }
+            } catch (Exception $e) {
+                print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e->getMessage() . "\n");
+            }
+        }
+
+        printf(
+            "\nPeriod low: %f, high: %f, average: %f, sought: %f\n",
+            $symbolPeriodLow,
+            $symbolPeriodHigh,
+            $symbolPeriodAvg,
+            $avgByBuyPercent
+        );
+        printf("Buy %s of %s @ %f\n", $quantity, $buysymbol, $buy_price);
+    }
+
+    /**
+     * @return int
+     */
+    #[\Override]
+    public function placeSellOrder()
+    {
+        if (BinanceBotSettings::getInstance()->debug) {
+            print(__FUNCTION__ . ":" . __LINE__ . " Place sell order:\n");
+        }
+
+        return $this->sellAvailableHoldings(
+            function ($symbol, $data, $orderdetails) {
+                list($symbolPeriodLow, $symbolPeriodHigh,
+                    $symbolPeriodAvg) = $this->BinanceBotCandles->getSymbolLowHighAvgAtInterval(
+                        $symbol
+                        . BinanceBotSettings::getInstance()->base_currency,
+                        BinanceBotSettings::getInstance()->investment_period
+                    );
+
+                if ($symbolPeriodLow == 0 && $symbolPeriodHigh == 0 && $symbolPeriodAvg == 0) {
+                    return false;
+                }
+
+                $avgBySellPercent = $symbolPeriodAvg * BinanceBotSettings::getInstance()->sell_at_percent;
+
+                printf(
+                    "Period low: %f, high: %f, average: %f, sought: %f\n",
+                    $symbolPeriodLow,
+                    $symbolPeriodHigh,
+                    $symbolPeriodAvg,
+                    $avgBySellPercent
+                );
+
+                $sell_price = ($avgBySellPercent > $symbolPeriodHigh) ? $symbolPeriodHigh : $avgBySellPercent;
+                $sell_price = ($sell_price < $orderdetails['price'])
+                    ? $orderdetails['price'] * BinanceBotSettings::getInstance()->sell_at_percent : $sell_price;
+
+                print __FUNCTION__ . ":" . __LINE__ . " " . $symbol . BinanceBotSettings::getInstance()->base_currency
+                    . " " . strval(floor($data['available'])) . " * " . sprintf("%f", $sell_price) . "\n";
+                printf(
+                    $symbol . BinanceBotSettings::getInstance()->base_currency . " %f \n",
+                    (floor($data['available']) * $sell_price)
+                );
+
+                if (BinanceBotSettings::getInstance()->test == false) {
+                    try {
+                        $response = $this->BinanceBotOrders->placeSellOrder(
+                            $symbol
+                            . BinanceBotSettings::getInstance()->base_currency,
+                            sprintf("%f", $sell_price),
+                            floor($data['available'])
+                        );
+                        if (BinanceBotSettings::getInstance()->debug) {
+                            print(__FUNCTION__ . ":" . __LINE__ . " Sell order result:n");
+                            print_r($response);
+                        }
+                    } catch (Exception $e) {
+                        print(__FUNCTION__ . ":" . __LINE__ . " Error: " . $e->getMessage() . "\n");
+                    }
+                }
+
+                printf(__FUNCTION__ . ":" . __LINE__ . " Sell %s @ %f\n", $symbol, $sell_price);
+                return true;
+            }
+        );
+    }
 }

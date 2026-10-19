@@ -1,0 +1,19 @@
+parameters:
+    level: 5
+    scanFiles:
+        - ../../bi-api.php
+        - ../../binance-bot.class.php
+        - ../../Bot.class.php
+        - ../../BinanceBotService.class.php
+        - ../../BinanceBotOrders.class.php
+        - ../../BinanceBotHoldings.class.php
+        - ../../BinanceBotPrinter.class.php
+        - ../../BinanceBotPrices.class.php
+        - ../../BinanceBotSettings.class.php
+        - ../../BinanceBotCandles.class.php
+        - ../../ITransactionStrategy.php
+        - ../../TransactionStrategy.class.php
+        - ../../BasicTransactionStrategy.class.php
+        - ../../PeriodBasedTransactionStrategy.class.php
+        - ../../ISMSGateway.php
+        - ../../sms/EirSMS.class.php

@@ -1,103 +1,161 @@
 <?php
 
-require 'bi-api.php';
-require 'BinanceBotOrders.class.php';
-require 'BinanceBotHoldings.class.php';
-require 'BinanceBotPrinter.class.php';
-require 'BinanceBotPrices.class.php';
-require 'ITransactionStrategy.php';
-require 'TransactionStrategy.class.php';
-require 'BasicTransactionStrategy.class.php';
-require 'PeriodBasedTransactionStrategy.class.php';
-require 'BinanceBotSettings.class.php';
-require 'BinanceBotCandles.class.php';
-require 'ISMSGateway.php';
-require 'sms/EirSMS.class.php';
+namespace BinanceBot;
 
 class Bot
 {
-   private $apiKey = "";
-   private $priKey = "";
-   protected $api = null;
-   protected $BinanceBotPrices = null;
-   protected $BinanceBotOrders = null;
-   protected $BinanceBotHoldings = null;
-   protected $BinanceBotPrinter = null;
-   protected $BinanceBotCandles = null;
-   protected $BinanceBotSMSGateway = null;
-   protected $BinanceBotTransactionStrategy = null;
-   private $lastrunFile = "cache/lastrun.txt";
+    /** @var string */
+    private $apiKey = "";
 
-   public function __construct()
-   {
-      @mkdir( BinanceBot\BinanceBotSettings::getInstance()->cachedir );
+    /** @var string */
+    private $priKey = "";
 
-      $this->apiKey = BinanceBot\BinanceBotSettings::getInstance()->apikey;
-      $this->priKey = BinanceBot\BinanceBotSettings::getInstance()->prikey;
+    /** @var mixed */
+    protected $api = null;
 
-      $deleteCache = $this->doCachedRun();
-      $this->api = new Binance\API( $this->apiKey, $this->priKey );
+    /** @var mixed */
+    protected $BinanceBotPrices = null;
 
-      $smsgateway = BinanceBot\BinanceBotSettings::getInstance()->smsGateway;
-      $class = 'BinanceBot\\'. $smsgateway;
-      $this->BinanceBotSMSGateway = new $class();
+    /** @var mixed */
+    protected $BinanceBotOrders = null;
 
-      $this->BinanceBotPrices = new BinanceBot\BinanceBotPrices( array( $deleteCache, $this->api ) );
-      $this->BinanceBotOrders = new BinanceBot\BinanceBotOrders( array( $deleteCache, $this->api, $this->BinanceBotPrices, $this->BinanceBotSMSGateway ) );
-      $this->BinanceBotHoldings = new BinanceBot\BinanceBotHoldings( array( $deleteCache, $this->api, $this->BinanceBotPrices, $this->BinanceBotSMSGateway ) );
-      $this->BinanceBotCandles = new BinanceBot\BinanceBotCandles( array( false, $this->api, $this->BinanceBotPrices, $this->BinanceBotHoldings, $this->BinanceBotOrders ) );
-      $this->BinanceBotPrinter = new BinanceBot\BinanceBotPrinter( array( $this->api, $this->BinanceBotHoldings, $this->BinanceBotOrders, $this->BinanceBotPrices, $this->BinanceBotCandles ) );
+    /** @var mixed */
+    protected $BinanceBotHoldings = null;
 
-      $strategy = BinanceBot\BinanceBotSettings::getInstance()->strategy;
-      $class = 'BinanceBot\\'. $strategy;
-      $this->BinanceBotTransactionStrategy = new $class( array( $this->api, $this->BinanceBotHoldings, $this->BinanceBotOrders, $this->BinanceBotPrices, $this->BinanceBotCandles ) );
-   }
+    /** @var mixed */
+    protected $BinanceBotPrinter = null;
 
-   public function doCachedRun()
-   {
-      $lastrun = time();
+    /** @var mixed */
+    protected $BinanceBotCandles = null;
 
-      if( file_exists( BinanceBot\BinanceBotSettings::getInstance()->lastRunFile ) )
-      {
-         $lastrun = file_get_contents( BinanceBot\BinanceBotSettings::getInstance()->lastRunFile );
-      }
+    /** @var mixed */
+    protected $BinanceBotSMSGateway = null;
 
-      file_put_contents( BinanceBot\BinanceBotSettings::getInstance()->lastRunFile, $lastrun );
+    /** @var mixed */
+    protected $BinanceBotTransactionStrategy = null;
 
-      if( $lastrun > time() - BinanceBot\BinanceBotSettings::getInstance()->cache_tmeout_seconds )
-      {
-         unlink( BinanceBot\BinanceBotSettings::getInstance()->lastRunFile );
-         return false;
-      }
+    /**
+     * @return void
+     */
+    public function __construct()
+    {
+        @mkdir(BinanceBotSettings::getInstance()->cachedir);
 
-      return true;
-   }
+        $this->apiKey = BinanceBotSettings::getInstance()->apikey;
+        $this->priKey = BinanceBotSettings::getInstance()->prikey;
 
-   public function run()
-   {
-      $i = 1;
-      $updating = false;
+        $deleteCache = $this->doCachedRun();
+        $this->api = new \Binance\API($this->apiKey, $this->priKey);
 
-      while( true )
-      {
-         BinanceBot\BinanceBotSettings::getInstance()->update();
-         $this->BinanceBotPrices->update();
-         $this->BinanceBotHoldings->update();
-         $this->BinanceBotOrders->update( $this->BinanceBotHoldings->getHoldingsChanged() );
-         $this->BinanceBotPrinter->update();
-         $this->BinanceBotTransactionStrategy->limitOrders( "BUY" );
-         $this->BinanceBotTransactionStrategy->limitOrders( "SELL" );
+        $smsgateway = BinanceBotSettings::getInstance()->smsGateway;
+        if ($smsgateway === 'EirSMS') {
+            $this->BinanceBotSMSGateway = new EirSMS();
+        }
 
-         if( ( $i % 1800 == 0 || $updating == true ) && $this->BinanceBotCandles->getDueForUpdate( false ) == true )
-         {
-            $updating = true;
-            $this->BinanceBotCandles->update();
-            $updating = $this->BinanceBotCandles->getDueForUpdate( false );
-         }
+        $this->BinanceBotPrices = new BinanceBotPrices(
+            array($deleteCache, $this->api)
+        );
+        $this->BinanceBotOrders = new BinanceBotOrders(
+            array($deleteCache, $this->api, $this->BinanceBotPrices, $this->BinanceBotSMSGateway)
+        );
+        $this->BinanceBotHoldings = new BinanceBotHoldings(
+            array($deleteCache, $this->api, $this->BinanceBotPrices, $this->BinanceBotSMSGateway)
+        );
+        $this->BinanceBotCandles = new BinanceBotCandles(
+            array(
+                false,
+                $this->api,
+                $this->BinanceBotPrices,
+                $this->BinanceBotHoldings,
+                $this->BinanceBotOrders,
+            )
+        );
+        $this->BinanceBotPrinter = new BinanceBotPrinter(
+            array(
+                $this->api,
+                $this->BinanceBotHoldings,
+                $this->BinanceBotOrders,
+                $this->BinanceBotPrices,
+                $this->BinanceBotCandles,
+            )
+        );
 
-         $i++;
+        $strategy = BinanceBotSettings::getInstance()->strategy;
+        $strategyArgs = array(
+            $this->api,
+            $this->BinanceBotHoldings,
+            $this->BinanceBotOrders,
+            $this->BinanceBotPrices,
+            $this->BinanceBotCandles,
+        );
+        if ($strategy === 'BasicTransactionStrategy') {
+            $this->BinanceBotTransactionStrategy = new BasicTransactionStrategy($strategyArgs);
+        } else {
+            $this->BinanceBotTransactionStrategy = new PeriodBasedTransactionStrategy($strategyArgs);
+        }
+    }
 
-         sleep( 1 );
-      }
-   }
+    /**
+     * @return bool
+     */
+    public function doCachedRun()
+    {
+        $lastrun = time();
+        $lastRunFile = BinanceBotSettings::getInstance()->lastRunFile;
+
+        if (file_exists($lastRunFile)) {
+            $contents = file_get_contents($lastRunFile);
+            if (is_string($contents)) {
+                $lastrun = $contents;
+            }
+        }
+
+        file_put_contents($lastRunFile, strval($lastrun));
+
+        $timeout = BinanceBotSettings::getInstance()->cache_tmeout_seconds;
+        if ($lastrun > time() - $timeout) {
+            unlink($lastRunFile);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function shouldContinue()
+    {
+        return true;
+    }
+
+    /**
+     * @return void
+     */
+    public function run()
+    {
+        $i = 1;
+        $updating = false;
+
+        while ($this->shouldContinue()) {
+            BinanceBotSettings::getInstance()->update();
+            $this->BinanceBotPrices->update();
+            $this->BinanceBotHoldings->update();
+            $changed = $this->BinanceBotHoldings->getHoldingsChanged();
+            $this->BinanceBotOrders->update($changed);
+            $this->BinanceBotPrinter->update();
+            $this->BinanceBotTransactionStrategy->limitOrders("BUY");
+            $this->BinanceBotTransactionStrategy->limitOrders("SELL");
+
+            $due = $this->BinanceBotCandles->getDueForUpdate(false);
+            if (($i % 1800 == 0 || $updating == true) && $due == true) {
+                $this->BinanceBotCandles->update();
+                $updating = $this->BinanceBotCandles->getDueForUpdate(false);
+            }
+
+            $i++;
+
+            sleep(1);
+        }
+    }
 }
